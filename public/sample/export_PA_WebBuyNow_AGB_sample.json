@@ -1,0 +1,739 @@
+{
+  "type": "AdaptiveBoostScoringModel",
+  "modelVersion": "2",
+  "algorithm": "GRADIENT_BOOST",
+  "factoryUpdateTime": "20240101T120000.000Z",
+  "trainingStats": {
+    "positiveCount": 8420,
+    "negativeCount": 91580,
+    "totalCount": 100000
+  },
+  "successRate": 0.0842,
+  "auc": 0.784,
+  "model": {
+    "booster": {
+      "trees": [
+        {
+          "score": 0.0,
+          "gain": 142.8,
+          "sampleCount": 100000,
+          "split": "Customer.Scores.PropensityScore < 0.12",
+          "left": {
+            "score": -0.18,
+            "gain": 62.4,
+            "sampleCount": 64200,
+            "split": "IH.Web.Inbound.Impression.pyHistoricalOutcomeCount < 3",
+            "left": {
+              "score": -0.24,
+              "gain": 0,
+              "sampleCount": 38800,
+              "isLeaf": true
+            },
+            "right": {
+              "score": -0.09,
+              "gain": 22.1,
+              "sampleCount": 25400,
+              "split": "Customer.Age < 35",
+              "left": {
+                "score": -0.14,
+                "gain": 0,
+                "sampleCount": 12600,
+                "isLeaf": true
+              },
+              "right": {
+                "score": -0.03,
+                "gain": 0,
+                "sampleCount": 12800,
+                "isLeaf": true
+              }
+            }
+          },
+          "right": {
+            "score": 0.19,
+            "gain": 80.4,
+            "sampleCount": 35800,
+            "split": "Param.Placement in [Homepage, ProductPage]",
+            "left": {
+              "score": 0.24,
+              "gain": 38.2,
+              "sampleCount": 22000,
+              "split": "Customer.LifetimeValue < 1200",
+              "left": {
+                "score": 0.14,
+                "gain": 0,
+                "sampleCount": 14500,
+                "isLeaf": true
+              },
+              "right": {
+                "score": 0.38,
+                "gain": 0,
+                "sampleCount": 7500,
+                "isLeaf": true
+              }
+            },
+            "right": {
+              "score": 0.07,
+              "gain": 0,
+              "sampleCount": 13800,
+              "isLeaf": true
+            }
+          }
+        },
+        {
+          "score": 0.0,
+          "gain": 118.2,
+          "sampleCount": 100000,
+          "split": "Customer.LifetimeValue < 800",
+          "left": {
+            "score": -0.12,
+            "gain": 54.8,
+            "sampleCount": 58000,
+            "split": "pyTreatment in [DiscountOffer, FreeShipping]",
+            "left": {
+              "score": -0.05,
+              "gain": 18.4,
+              "sampleCount": 24600,
+              "split": "IH.Web.Inbound.Click.pyHistoricalOutcomeCount < 2",
+              "left": {
+                "score": -0.08,
+                "gain": 0,
+                "sampleCount": 16200,
+                "isLeaf": true
+              },
+              "right": {
+                "score": 0.04,
+                "gain": 0,
+                "sampleCount": 8400,
+                "isLeaf": true
+              }
+            },
+            "right": {
+              "score": -0.19,
+              "gain": 0,
+              "sampleCount": 33400,
+              "isLeaf": true
+            }
+          },
+          "right": {
+            "score": 0.13,
+            "gain": 63.4,
+            "sampleCount": 42000,
+            "split": "Customer.Scores.PropensityScore < 0.25",
+            "left": {
+              "score": 0.06,
+              "gain": 24.6,
+              "sampleCount": 22800,
+              "split": "Customer.Age < 42",
+              "left": {
+                "score": 0.02,
+                "gain": 8.2,
+                "sampleCount": 13200,
+                "split": "Param.Placement in [Sidebar]",
+                "left": {
+                  "score": 0.09,
+                  "gain": 0,
+                  "sampleCount": 5400,
+                  "isLeaf": true
+                },
+                "right": {
+                  "score": -0.04,
+                  "gain": 0,
+                  "sampleCount": 7800,
+                  "isLeaf": true
+                }
+              },
+              "right": {
+                "score": 0.15,
+                "gain": 0,
+                "sampleCount": 9600,
+                "isLeaf": true
+              }
+            },
+            "right": {
+              "score": 0.28,
+              "gain": 0,
+              "sampleCount": 19200,
+              "isLeaf": true
+            }
+          }
+        },
+        {
+          "score": 0.0,
+          "gain": 96.4,
+          "sampleCount": 100000,
+          "split": "IH.Web.Inbound.Click.pyHistoricalOutcomeCount < 5",
+          "left": {
+            "score": -0.08,
+            "gain": 44.2,
+            "sampleCount": 72000,
+            "split": "Customer.Age < 28",
+            "left": {
+              "score": -0.16,
+              "gain": 0,
+              "sampleCount": 18600,
+              "isLeaf": true
+            },
+            "right": {
+              "score": -0.04,
+              "gain": 18.8,
+              "sampleCount": 53400,
+              "split": "Customer.Scores.PropensityScore < 0.18",
+              "left": {
+                "score": -0.09,
+                "gain": 0,
+                "sampleCount": 31200,
+                "isLeaf": true
+              },
+              "right": {
+                "score": 0.06,
+                "gain": 0,
+                "sampleCount": 22200,
+                "isLeaf": true
+              }
+            }
+          },
+          "right": {
+            "score": 0.22,
+            "gain": 52.2,
+            "sampleCount": 28000,
+            "split": "pyTreatment in [PremiumOffer]",
+            "left": {
+              "score": 0.31,
+              "gain": 0,
+              "sampleCount": 9800,
+              "isLeaf": true
+            },
+            "right": {
+              "score": 0.16,
+              "gain": 0,
+              "sampleCount": 18200,
+              "isLeaf": true
+            }
+          }
+        },
+        {
+          "score": 0.0,
+          "gain": 84.6,
+          "sampleCount": 100000,
+          "split": "Param.Placement in [Homepage, ProductPage, CartPage]",
+          "left": {
+            "score": 0.11,
+            "gain": 42.2,
+            "sampleCount": 46000,
+            "split": "Customer.LifetimeValue < 2400",
+            "left": {
+              "score": 0.04,
+              "gain": 16.8,
+              "sampleCount": 29800,
+              "split": "Customer.Scores.PropensityScore < 0.22",
+              "left": {
+                "score": 0.0,
+                "gain": 6.2,
+                "sampleCount": 17400,
+                "split": "IH.Web.Inbound.Impression.pyHistoricalOutcomeCount < 6",
+                "left": {
+                  "score": -0.04,
+                  "gain": 0,
+                  "sampleCount": 10800,
+                  "isLeaf": true
+                },
+                "right": {
+                  "score": 0.08,
+                  "gain": 0,
+                  "sampleCount": 6600,
+                  "isLeaf": true
+                }
+              },
+              "right": {
+                "score": 0.12,
+                "gain": 0,
+                "sampleCount": 12400,
+                "isLeaf": true
+              }
+            },
+            "right": {
+              "score": 0.26,
+              "gain": 0,
+              "sampleCount": 16200,
+              "isLeaf": true
+            }
+          },
+          "right": {
+            "score": -0.14,
+            "gain": 42.4,
+            "sampleCount": 54000,
+            "split": "Customer.Age < 50",
+            "left": {
+              "score": -0.08,
+              "gain": 0,
+              "sampleCount": 32400,
+              "isLeaf": true
+            },
+            "right": {
+              "score": -0.22,
+              "gain": 0,
+              "sampleCount": 21600,
+              "isLeaf": true
+            }
+          }
+        },
+        {
+          "score": 0.0,
+          "gain": 74.8,
+          "sampleCount": 100000,
+          "split": "Customer.Age < 30",
+          "left": {
+            "score": -0.14,
+            "gain": 36.4,
+            "sampleCount": 24200,
+            "split": "IH.Web.Inbound.Click.pyHistoricalOutcomeCount < 1",
+            "left": {
+              "score": -0.22,
+              "gain": 0,
+              "sampleCount": 14800,
+              "isLeaf": true
+            },
+            "right": {
+              "score": -0.03,
+              "gain": 0,
+              "sampleCount": 9400,
+              "isLeaf": true
+            }
+          },
+          "right": {
+            "score": 0.08,
+            "gain": 38.4,
+            "sampleCount": 75800,
+            "split": "Customer.Scores.PropensityScore < 0.3",
+            "left": {
+              "score": 0.02,
+              "gain": 16.2,
+              "sampleCount": 48600,
+              "split": "pyTreatment in [DiscountOffer]",
+              "left": {
+                "score": 0.08,
+                "gain": 0,
+                "sampleCount": 18200,
+                "isLeaf": true
+              },
+              "right": {
+                "score": -0.02,
+                "gain": 0,
+                "sampleCount": 30400,
+                "isLeaf": true
+              }
+            },
+            "right": {
+              "score": 0.19,
+              "gain": 0,
+              "sampleCount": 27200,
+              "isLeaf": true
+            }
+          }
+        },
+        {
+          "score": 0.0,
+          "gain": 65.2,
+          "sampleCount": 100000,
+          "split": "IH.Web.Inbound.Impression.pyHistoricalOutcomeCount < 10",
+          "left": {
+            "score": -0.07,
+            "gain": 28.8,
+            "sampleCount": 62800,
+            "split": "Param.Placement in [Homepage]",
+            "left": {
+              "score": -0.01,
+              "gain": 12.4,
+              "sampleCount": 28400,
+              "split": "Customer.LifetimeValue < 600",
+              "left": {
+                "score": -0.08,
+                "gain": 0,
+                "sampleCount": 18600,
+                "isLeaf": true
+              },
+              "right": {
+                "score": 0.1,
+                "gain": 0,
+                "sampleCount": 9800,
+                "isLeaf": true
+              }
+            },
+            "right": {
+              "score": -0.12,
+              "gain": 0,
+              "sampleCount": 34400,
+              "isLeaf": true
+            }
+          },
+          "right": {
+            "score": 0.16,
+            "gain": 36.4,
+            "sampleCount": 37200,
+            "split": "Customer.Age < 38",
+            "left": {
+              "score": 0.09,
+              "gain": 0,
+              "sampleCount": 19600,
+              "isLeaf": true
+            },
+            "right": {
+              "score": 0.24,
+              "gain": 0,
+              "sampleCount": 17600,
+              "isLeaf": true
+            }
+          }
+        },
+        {
+          "score": 0.0,
+          "gain": 58.4,
+          "sampleCount": 100000,
+          "split": "pyTreatment in [PremiumOffer, LoyaltyOffer]",
+          "left": {
+            "score": 0.14,
+            "gain": 28.6,
+            "sampleCount": 38200,
+            "split": "Customer.Scores.PropensityScore < 0.35",
+            "left": {
+              "score": 0.06,
+              "gain": 11.2,
+              "sampleCount": 21600,
+              "split": "Customer.LifetimeValue < 1800",
+              "left": {
+                "score": 0.02,
+                "gain": 4.2,
+                "sampleCount": 13200,
+                "split": "IH.Web.Inbound.Click.pyHistoricalOutcomeCount < 4",
+                "left": {
+                  "score": -0.01,
+                  "gain": 0,
+                  "sampleCount": 7800,
+                  "isLeaf": true
+                },
+                "right": {
+                  "score": 0.07,
+                  "gain": 0,
+                  "sampleCount": 5400,
+                  "isLeaf": true
+                }
+              },
+              "right": {
+                "score": 0.15,
+                "gain": 0,
+                "sampleCount": 8400,
+                "isLeaf": true
+              }
+            },
+            "right": {
+              "score": 0.24,
+              "gain": 0,
+              "sampleCount": 16600,
+              "isLeaf": true
+            }
+          },
+          "right": {
+            "score": -0.06,
+            "gain": 29.8,
+            "sampleCount": 61800,
+            "split": "Customer.Age < 45",
+            "left": {
+              "score": -0.02,
+              "gain": 0,
+              "sampleCount": 36400,
+              "isLeaf": true
+            },
+            "right": {
+              "score": -0.14,
+              "gain": 0,
+              "sampleCount": 25400,
+              "isLeaf": true
+            }
+          }
+        },
+        {
+          "score": 0.0,
+          "gain": 52.0,
+          "sampleCount": 100000,
+          "split": "Customer.Scores.PropensityScore < 0.08",
+          "left": {
+            "score": -0.2,
+            "gain": 24.2,
+            "sampleCount": 42800,
+            "split": "Param.Placement in [CartPage]",
+            "left": {
+              "score": -0.12,
+              "gain": 0,
+              "sampleCount": 16200,
+              "isLeaf": true
+            },
+            "right": {
+              "score": -0.26,
+              "gain": 0,
+              "sampleCount": 26600,
+              "isLeaf": true
+            }
+          },
+          "right": {
+            "score": 0.12,
+            "gain": 27.8,
+            "sampleCount": 57200,
+            "split": "IH.Web.Inbound.Impression.pyHistoricalOutcomeCount < 8",
+            "left": {
+              "score": 0.06,
+              "gain": 11.4,
+              "sampleCount": 34000,
+              "split": "Customer.Age < 33",
+              "left": {
+                "score": 0.01,
+                "gain": 0,
+                "sampleCount": 15800,
+                "isLeaf": true
+              },
+              "right": {
+                "score": 0.12,
+                "gain": 0,
+                "sampleCount": 18200,
+                "isLeaf": true
+              }
+            },
+            "right": {
+              "score": 0.22,
+              "gain": 0,
+              "sampleCount": 23200,
+              "isLeaf": true
+            }
+          }
+        },
+        {
+          "score": 0.0,
+          "gain": 46.8,
+          "sampleCount": 100000,
+          "split": "Customer.LifetimeValue < 3200",
+          "left": {
+            "score": -0.05,
+            "gain": 22.6,
+            "sampleCount": 72600,
+            "split": "IH.Web.Inbound.Click.pyHistoricalOutcomeCount < 7",
+            "left": {
+              "score": -0.1,
+              "gain": 8.4,
+              "sampleCount": 54800,
+              "split": "pyTreatment in [DiscountOffer, FreeShipping, LoyaltyOffer]",
+              "left": {
+                "score": -0.04,
+                "gain": 0,
+                "sampleCount": 26200,
+                "isLeaf": true
+              },
+              "right": {
+                "score": -0.17,
+                "gain": 0,
+                "sampleCount": 28600,
+                "isLeaf": true
+              }
+            },
+            "right": {
+              "score": 0.06,
+              "gain": 0,
+              "sampleCount": 17800,
+              "isLeaf": true
+            }
+          },
+          "right": {
+            "score": 0.18,
+            "gain": 24.2,
+            "sampleCount": 27400,
+            "split": "Customer.Scores.PropensityScore < 0.4",
+            "left": {
+              "score": 0.11,
+              "gain": 0,
+              "sampleCount": 16000,
+              "isLeaf": true
+            },
+            "right": {
+              "score": 0.3,
+              "gain": 0,
+              "sampleCount": 11400,
+              "isLeaf": true
+            }
+          }
+        },
+        {
+          "score": 0.0,
+          "gain": 41.2,
+          "sampleCount": 100000,
+          "split": "Customer.Age < 55",
+          "left": {
+            "score": 0.04,
+            "gain": 18.6,
+            "sampleCount": 82400,
+            "split": "Param.Placement in [Homepage, ProductPage]",
+            "left": {
+              "score": 0.1,
+              "gain": 8.2,
+              "sampleCount": 36800,
+              "split": "Customer.Scores.PropensityScore < 0.28",
+              "left": {
+                "score": 0.04,
+                "gain": 0,
+                "sampleCount": 21200,
+                "isLeaf": true
+              },
+              "right": {
+                "score": 0.2,
+                "gain": 0,
+                "sampleCount": 15600,
+                "isLeaf": true
+              }
+            },
+            "right": {
+              "score": -0.01,
+              "gain": 0,
+              "sampleCount": 45600,
+              "isLeaf": true
+            }
+          },
+          "right": {
+            "score": -0.18,
+            "gain": 22.6,
+            "sampleCount": 17600,
+            "split": "IH.Web.Inbound.Impression.pyHistoricalOutcomeCount < 4",
+            "left": {
+              "score": -0.24,
+              "gain": 0,
+              "sampleCount": 10400,
+              "isLeaf": true
+            },
+            "right": {
+              "score": -0.09,
+              "gain": 0,
+              "sampleCount": 7200,
+              "isLeaf": true
+            }
+          }
+        },
+        {
+          "score": 0.0,
+          "gain": 36.4,
+          "sampleCount": 100000,
+          "split": "IH.Web.Inbound.Click.pyHistoricalOutcomeCount < 3",
+          "left": {
+            "score": -0.06,
+            "gain": 16.2,
+            "sampleCount": 58600,
+            "split": "Customer.LifetimeValue < 1400",
+            "left": {
+              "score": -0.12,
+              "gain": 0,
+              "sampleCount": 34200,
+              "isLeaf": true
+            },
+            "right": {
+              "score": 0.02,
+              "gain": 0,
+              "sampleCount": 24400,
+              "isLeaf": true
+            }
+          },
+          "right": {
+            "score": 0.1,
+            "gain": 20.2,
+            "sampleCount": 41400,
+            "split": "Customer.Age < 40",
+            "left": {
+              "score": 0.05,
+              "gain": 8.4,
+              "sampleCount": 22600,
+              "split": "pyTreatment in [PremiumOffer]",
+              "left": {
+                "score": 0.12,
+                "gain": 0,
+                "sampleCount": 9200,
+                "isLeaf": true
+              },
+              "right": {
+                "score": 0.0,
+                "gain": 0,
+                "sampleCount": 13400,
+                "isLeaf": true
+              }
+            },
+            "right": {
+              "score": 0.17,
+              "gain": 0,
+              "sampleCount": 18800,
+              "isLeaf": true
+            }
+          }
+        },
+        {
+          "score": 0.0,
+          "gain": 30.8,
+          "sampleCount": 100000,
+          "split": "Customer.Scores.PropensityScore < 0.45",
+          "left": {
+            "score": -0.03,
+            "gain": 14.4,
+            "sampleCount": 68400,
+            "split": "Param.Placement in [CartPage, CheckoutPage]",
+            "left": {
+              "score": 0.04,
+              "gain": 6.2,
+              "sampleCount": 28800,
+              "split": "Customer.Age < 36",
+              "left": {
+                "score": 0.0,
+                "gain": 2.8,
+                "sampleCount": 15400,
+                "split": "IH.Web.Inbound.Impression.pyHistoricalOutcomeCount < 2",
+                "left": {
+                  "score": -0.03,
+                  "gain": 0,
+                  "sampleCount": 9600,
+                  "isLeaf": true
+                },
+                "right": {
+                  "score": 0.05,
+                  "gain": 0,
+                  "sampleCount": 5800,
+                  "isLeaf": true
+                }
+              },
+              "right": {
+                "score": 0.1,
+                "gain": 0,
+                "sampleCount": 13400,
+                "isLeaf": true
+              }
+            },
+            "right": {
+              "score": -0.08,
+              "gain": 0,
+              "sampleCount": 39600,
+              "isLeaf": true
+            }
+          },
+          "right": {
+            "score": 0.14,
+            "gain": 16.4,
+            "sampleCount": 31600,
+            "split": "Customer.LifetimeValue < 2800",
+            "left": {
+              "score": 0.08,
+              "gain": 0,
+              "sampleCount": 19200,
+              "isLeaf": true
+            },
+            "right": {
+              "score": 0.24,
+              "gain": 0,
+              "sampleCount": 12400,
+              "isLeaf": true
+            }
+          }
+        }
+      ]
+    }
+  }
+}
