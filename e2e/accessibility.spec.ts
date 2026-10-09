@@ -2,24 +2,29 @@ import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { writeFile } from 'node:fs/promises';
 
-test('start, explore and trace surfaces have no automated WCAG A/AA violations', async ({ page }, testInfo) => {
-  await page.goto('/');
-  for (const surface of ['start', 'explore', 'trace']) {
-    if (surface === 'explore') {
+for (const surface of ['start', 'explore', 'trace', 'ai-preview']) {
+  test(`${surface} has no automated WCAG A/AA violations`, async ({ page }, testInfo) => {
+    await page.goto('/');
+    if (surface !== 'start') {
       await page.getByRole('button', { name: /Try the bundled sample/ }).click();
       await expect(page.getByRole('region', { name: 'Model workspace' })).toBeVisible();
     }
-    if (surface === 'trace') {
+    if (surface === 'trace' || surface === 'ai-preview') {
       await page.getByRole('button', { name: 'Trace a profile' }).click();
       await page.getByText(/Edit illustrative profile/).click();
+    }
+    if (surface === 'ai-preview') {
+      await page.getByRole('checkbox', { name: /Enable session-only AI preview/ }).check();
+      await page.getByRole('combobox', { name: 'Provider', exact: true }).selectOption('github-models');
+      await page.getByRole('textbox', { name: /Model identifier/ }).fill('example/model');
     }
     const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
     const report = testInfo.outputPath(`axe-${surface}.json`);
     await writeFile(report, JSON.stringify(result.violations, null, 2));
     await testInfo.attach(`axe-${surface}`, { path: report, contentType: 'application/json' });
-    expect.soft(result.violations, surface).toEqual([]);
-  }
-});
+    expect(result.violations, surface).toEqual([]);
+  });
+}
 
 test('mobile occurrence selection reveals and focuses the matching SVG node', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });

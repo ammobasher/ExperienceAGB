@@ -317,3 +317,15 @@ summary:focus-visible, input:focus-visible { outline: 3px solid #287b67; outline
 .ensemble-status table { border-collapse: collapse; width: 100%; }
 .ensemble-status th, .ensemble-status td { padding: 8px; border-bottom: 1px solid var(--line); text-align: left; overflow-wrap: anywhere; }
 .state-invalid-number, .state-unknown-category, .state-unsupported { color: #873e29; }
+/* Local-only, explicit AI request preview; commentary never replaces model facts. */
+.contextual-ai { margin-top: 24px; padding: 20px; border: 1px solid #516879; border-radius: 12px; background: #f7fafb; color: #182a35; }
+.contextual-ai h3 { margin-top: 0; }
+.contextual-ai label { display: block; margin: 14px 0; overflow-wrap: anywhere; }
+.contextual-ai input:not([type="checkbox"]), .contextual-ai select { display: block; max-width: 100%; width: 100%; padding: 8px; border: 1px solid #516879; border-radius: 4px; background: white; color: #182a35; }
+.contextual-ai input[type="checkbox"] { margin-right: 8px; }
+.contextual-ai .button { margin: 6px 8px 6px 0; }
+.contextual-ai a { color: #005c74; text-decoration: underline; }
+.ai-retired { padding: 12px; border-left: 4px solid #876100; background: #fff4ce; }
+.ai-preview { padding: 12px; border: 1px solid #516879; border-radius: 6px; }
+.ai-preview code { display: block; overflow-wrap: anywhere; }
+.ai-preview pre { max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }

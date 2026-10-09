@@ -56,6 +56,62 @@ afterEach(() => {
 });
 
 describe('model workspace integration', () => {
+  it.each([
+    { search: 'Tree 3', expectedSearch: 'Tree 3' },
+    { search: 'Tree 1', expectedSearch: '' },
+  ])('reveals occurrence selection in filtered ensemble navigation: $search', async ({ search, expectedSearch }) => {
+    const trees = Array.from({ length: 51 }, (_, index) => ({
+      ...model.model.booster.trees[0],
+      split: index === 29 ? 'ChosenFeature < 35' : 'Customer.Age < 35',
+    }));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: async () => JSON.stringify({ ...model, model: { booster: { trees } } }) }));
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Try the bundled sample/ }));
+    await screen.findByRole('heading', { name: 'Tree 1' });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search trees' }), { target: { value: search } });
+    const sidebar = screen.getByRole('complementary', { name: 'Ensemble and predictor search' });
+    fireEvent.click(within(sidebar).getByText('ChosenFeature'));
+    fireEvent.click(within(sidebar).getByRole('button', { name: 'Tree 30, root, ChosenFeature < 35' }));
+    expect(screen.getByRole('heading', { name: 'Tree 30' })).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Search trees' })).toHaveValue(expectedSearch);
+    expect(within(sidebar).getByRole('button', { name: /30 Tree 30 2 leaves/ })).toHaveAttribute('aria-current', 'true');
+    expect(sidebar.querySelectorAll('.tree-row').length).toBeLessThanOrEqual(25);
+  });
+
+  it('bounds ensemble navigation to 25 rows per page and defers closed predictor occurrences', async () => {
+    const trees = Array.from({ length: 51 }, () => model.model.booster.trees[0]);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: async () => JSON.stringify({ ...model, model: { booster: { trees } } }) }));
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Try the bundled sample/ }));
+    await screen.findByRole('heading', { name: 'Tree 1' });
+    const sidebar = screen.getByRole('complementary', { name: 'Ensemble and predictor search' });
+    expect(sidebar.querySelectorAll('.tree-row')).toHaveLength(25);
+    expect(sidebar.querySelectorAll('.predictor-group li button')).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Next trees' }));
+    expect(sidebar.querySelectorAll('.tree-row')).toHaveLength(25);
+    expect(within(sidebar).getByRole('button', { name: /26 Tree 26/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next trees' }));
+    expect(sidebar.querySelectorAll('.tree-row')).toHaveLength(1);
+    expect(within(sidebar).getByRole('button', { name: /51 Tree 51/ })).toBeInTheDocument();
+    fireEvent.click(sidebar.querySelector('.predictor-group summary')!);
+    expect(sidebar.querySelectorAll('.predictor-group li button')).toHaveLength(20);
+    fireEvent.click(sidebar.querySelector('.predictor-group summary')!);
+    expect(sidebar.querySelectorAll('.predictor-group li button')).toHaveLength(0);
+  });
+
+  it('returns keyboard focus to Browse files after closing the workspace', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: async () => JSON.stringify(model) }));
+    const user = userEvent.setup({ delay: null });
+    render(<App />);
+    expect(document.body).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: /Try the bundled sample/ }));
+    await screen.findByRole('heading', { name: 'Pega AGB sample' });
+    expect(screen.getByRole('heading', { name: 'Pega AGB sample' })).toHaveFocus();
+    screen.getByRole('button', { name: /Open another/ }).focus();
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('button', { name: /Browse files/ })).toHaveFocus();
+  });
+
   it('exposes one accessible file-picker control', () => {
     render(<App />);
 

@@ -15,6 +15,11 @@ Do not interpret acceptance as production compatibility or approval. No switch u
 
 The supplied production payloads remain private attachments, not repository fixtures or publicly hosted samples. Their use demonstrated the observed structure; authoritative field semantics and source-attributed scoring fixtures remain required to verify scoring.
 
+On 2026-10-09 the owner authorized exploratory release with unverified scoring,
+local-only hosting and publication of the **existing bundled sample only**.
+That decision does not authorize either production payload, actual export
+identities, profiles, private research or private test evidence for redistribution.
+
 ## Observed shape and limits
 
 The root accepts only `type`, `algorithm`, `modelVersion`, `model`, `factoryUpdateTime`, `trainingStats`, `successRate`, and `auc`. `model` contains only `booster`; `booster` contains only nonempty `trees`.
@@ -54,6 +59,18 @@ This source was checked on 2026-10-07 in the current Platform '26 topic and its 
 Every route must complete, and all accumulated arithmetic must remain finite. Overflow stops cumulative scoring and withholds the preview even if later scores might cancel. A complete preview is **not** a final verified Pega/CDH propensity.
 
 The remaining scoring gate is validation of exported-node interpretation, input/preprocessing and exact routing against expected Pega outputs, including numeric boundaries, categorical identity and unknown/missing/blank behavior, plus applicability to the actual export/product variants and any environment-specific post-processing. The linked topic does not define the complete JSON schema, the UUID export tag semantics or these edge-case routing rules. The repository's handcrafted tests and bundled sample are regression evidence, not oracle evidence. No additional weighting/calibration is invented; unsupported supplied fields remain rejected.
+
+### Accepted exploratory scope (2026-10-09)
+
+The owner accepted an **exploratory preview**, informed by official documentation and the public companion implementation, rather than requiring private Java source or an independent scoring oracle before continuing implementation. These remain certification checks, not blockers to local exploration or consent-based commentary. The UI must continue to say unverified preview.
+
+Immutable companion references at pdstools commit `7634c8edd20a0f7e519331b9cc62b59b4746d92b`:
+
+- [Encoded split decoding](https://github.com/pegasystems/pega-datascientist-tools/blob/7634c8edd20a0f7e519331b9cc62b59b4746d92b/python/pdstools/adm/trees/_model.py#L174-L247).
+- [True/left, false/right traversal and leaf selection](https://github.com/pegasystems/pega-datascientist-tools/blob/7634c8edd20a0f7e519331b9cc62b59b4746d92b/python/pdstools/adm/trees/_model.py#L1234-L1288).
+- [Additive scoring followed by sigmoid](https://github.com/pegasystems/pega-datascientist-tools/blob/7634c8edd20a0f7e519331b9cc62b59b4746d92b/python/pdstools/adm/trees/_model.py#L1303-L1314).
+
+An isolated review executed 27 handcrafted cases against unchanged extracted companion methods, not its full package suite or the supplied production exports. It reproduced permissive invalid-number routing, string-substring missing checks, simplistic quoted-category parsing and extreme-negative sigmoid overflow. Those behaviors are **not** a Java contract and are intentionally not copied here. This adapter retains exact category parsing, explicit unresolved states, finite arithmetic and a stable sigmoid. Encoded datamart blobs are not supported merely because pdstools can decode them.
 
 ## Explanation scope
 

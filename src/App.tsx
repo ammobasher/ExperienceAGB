@@ -12,11 +12,15 @@ import { ModelWorkerClient } from './services/ModelWorkerClient';
 import type { ImportedWorkspace } from './services/workerProtocol';
 import TreeDiagram from './components/TreeDiagram';
 import ProfileTracePanel from './components/ProfileTracePanel';
+import ContextualAI from './components/ContextualAI';
 
 const SAMPLE_URL = `${import.meta.env.BASE_URL}sample/export_PA_WebBuyNow_AGB_sample.json`;
+const TREE_PAGE_SIZE = 25;
 
 export default function App() {
   const inputRef = useRef<HTMLInputElement>(null);
+  const browseRef = useRef<HTMLButtonElement>(null);
+  const restoreBrowseFocus = useRef(false);
   const client = useRef(new ModelWorkerClient()).current;
   const abortRef = useRef<AbortController>();
   const [workspace, setWorkspace] = useState<ImportedWorkspace>();
@@ -26,6 +30,12 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   useEffect(() => () => { abortRef.current?.abort(); client.dispose(); }, [client]);
+  useEffect(() => {
+    if (restoreBrowseFocus.current && !workspace && !busy) {
+      restoreBrowseFocus.current = false;
+      browseRef.current?.focus();
+    }
+  }, [workspace, busy]);
 
   async function importFile(file: Blob, name: string, signal: AbortSignal) {
     const imported = await client.load(file, signal, setStatus);
@@ -74,7 +84,7 @@ export default function App() {
     abortRef.current?.abort(); client.dispose(); setBusy(false); setStatus('');
     setError('Import cancelled. No model was saved or uploaded; choose a file to try again.');
   }
-  function closeModel() { client.dispose(); setWorkspace(undefined); setFileName(''); setError(''); }
+  function closeModel() { restoreBrowseFocus.current = true; client.dispose(); setWorkspace(undefined); setFileName(''); setError(''); }
   function onInputChange(event: ChangeEvent<HTMLInputElement>) {
     void openFile(event.target.files?.[0]); event.target.value = '';
   }
@@ -102,7 +112,7 @@ export default function App() {
             <div className={`drop-target${dragging ? ' is-dragging' : ''}`} onDragOver={event => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={onDrop}>
               <div className="file-glyph" aria-hidden="true"><span /><span /><span /></div>
               <h2>Choose an export file</h2><p>Drop a .json file here, or browse your device.</p>
-              <button className="button button-primary" onClick={() => inputRef.current?.click()} disabled={busy}>{busy ? 'Reading model…' : 'Browse files'} <span>↗</span></button>
+              <button ref={browseRef} className="button button-primary" onClick={() => inputRef.current?.click()} disabled={busy}>{busy ? 'Reading model…' : 'Browse files'} <span>↗</span></button>
               <input ref={inputRef} type="file" accept=".json,application/json" hidden onChange={onInputChange} />
             </div>
             <div className="or-divider"><span>OR START WITH</span></div>
@@ -138,6 +148,7 @@ function Workspace({ model, analysis, result, fileName, client, onClose }: {
   const [predictorPage, setPredictorPage] = useState(0);
   const [focusedNodeId, setFocusedNodeId] = useState<string>();
   const [focusRequest, setFocusRequest] = useState(0);
+  const [aiNodeId, setAiNodeId] = useState('root');
   const ensembleTrace = useMemo(() => traceEnsemblePreview(model.trees, profileValues, analysis.features), [model.trees, profileValues, analysis.features]);
   const changedTrees = useMemo(() => previousTrace.current ? changedTreeIndices(previousTrace.current, ensembleTrace) : [], [ensembleTrace]);
   const tree = model.trees[selectedTree], facts = analysis.treeFacts[selectedTree], stage = ensembleTrace.stages[selectedTree];
@@ -155,7 +166,10 @@ function Workspace({ model, analysis, result, fileName, client, onClose }: {
     setSelectedTree(index); setView('explore'); setNavigationOpen(false); setFocusedNodeId('root'); setFocusRequest(value => value + 1);
   }
   function selectOccurrence(treeIndex: number, nodeId: string) {
-    setView('explore'); setNavigationOpen(false); setSelectedTree(treeIndex); setTreePage(Math.floor(treeIndex / 100));
+    const filteredIndex = filteredTrees.findIndex(tree => tree.index === treeIndex);
+    if (filteredIndex < 0) setTreeSearch('');
+    setView('explore'); setNavigationOpen(false); setSelectedTree(treeIndex);
+    setTreePage(Math.floor((filteredIndex < 0 ? treeIndex : filteredIndex) / TREE_PAGE_SIZE));
     setFocusedNodeId(nodeId);
     setFocusRequest(value => value + 1);
   }
@@ -165,7 +179,7 @@ function Workspace({ model, analysis, result, fileName, client, onClose }: {
         <div><p className="eyebrow">MODEL WORKSPACE <span>/</span> OBSERVED STRUCTURE VALIDATED</p><h1 ref={titleRef} tabIndex={-1}>{fileName}</h1><p className="workspace-subtitle">Pega Adaptive Gradient Boosting <span className="version-tag">Export tag: {model.modelVersion}</span></p></div>
         <button className="button button-quiet" onClick={onClose}>Open another <span>↗</span></button>
       </div>
-      <p className="preview-notice">Unverified export preview. Pega oracle and live-CDH scoring parity are not established. AI explanations are deferred; model and profile data stay local.</p>
+      <p className="preview-notice">Unverified export preview. Pega oracle and live-CDH scoring parity are not established. Optional AI context previews stay local; GitHub Models requests are blocked because the service is retired.</p>
       <details className="model-metadata"><summary>Model metadata and metric definitions</summary>
         <dl>
           <dt>Adapter provenance</dt><dd>{model.modelVersion === '2' ? 'Observed bundled sample-v2 shape' : 'Observed UUID-v4-tagged export structure'}; compatibility and scoring are not Pega-oracle certified. The export tag is preserved, not assumed to be a schema version.</dd>
@@ -192,11 +206,11 @@ function Workspace({ model, analysis, result, fileName, client, onClose }: {
           <div id="workspace-navigation" className={`navigation-content${navigationOpen ? ' is-open' : ''}`}>
             <div className="section-label"><span>ENSEMBLE</span><span>{model.trees.length}</span></div>
             <label className="predictor-search-field">Find a tree<input aria-label="Search trees" type="search" value={treeSearch} onChange={event => { setTreeSearch(event.target.value); setTreePage(0); }} placeholder="Tree number or predictor" /></label>
-            <ol>{filteredTrees.slice(treePage * 100, (treePage + 1) * 100).map(({ index }) => {
+            <ol>{filteredTrees.slice(treePage * TREE_PAGE_SIZE, (treePage + 1) * TREE_PAGE_SIZE).map(({ index }) => {
               return <li key={index}><button className={selectedTree === index ? 'tree-row is-selected' : 'tree-row'} onClick={() => exploreTree(index)} aria-current={selectedTree === index ? 'true' : undefined}><span className="tree-number">{String(index + 1).padStart(2, '0')}</span><span className="tree-label">Tree {index + 1}</span><span className="tree-leaves">{analysis.treeFacts[index].leaves} leaves</span></button></li>;
             })}</ol>
             {!filteredTrees.length && <p className="predictor-empty">No matching trees.</p>}
-            {filteredTrees.length > 100 && <div className="pagination"><button disabled={treePage === 0} onClick={() => setTreePage(value => value - 1)}>Previous trees</button><span>{treePage + 1} / {Math.ceil(filteredTrees.length / 100)}</span><button disabled={(treePage + 1) * 100 >= filteredTrees.length} onClick={() => setTreePage(value => value + 1)}>Next trees</button></div>}
+            {filteredTrees.length > TREE_PAGE_SIZE && <div className="pagination"><button disabled={treePage === 0} onClick={() => setTreePage(value => value - 1)}>Previous trees</button><span>{treePage + 1} / {Math.ceil(filteredTrees.length / TREE_PAGE_SIZE)}</span><button disabled={(treePage + 1) * TREE_PAGE_SIZE >= filteredTrees.length} onClick={() => setTreePage(value => value + 1)}>Next trees</button></div>}
             <div className="predictor-search">
               <div className="section-label"><span>PREDICTORS</span><span>{analysis.predictors.length}</span></div>
               <label className="predictor-search-field">Find a predictor<input type="search" aria-label="Search predictors" value={predictorSearch} onChange={event => { setPredictorSearch(event.target.value); setPredictorPage(0); }} placeholder="Search by name" /></label>
@@ -220,7 +234,7 @@ function Workspace({ model, analysis, result, fileName, client, onClose }: {
           </div>
           <p className="diagram-guidance">Tree {selectedTree + 1} is one sequence of questions. An illustrative profile reaches one of its {facts.leaves} leaves and selects one additive contribution.</p>
           <div hidden={view !== 'explore'}>
-            <TreeDiagram key={selectedTree} tree={tree} treeNumber={selectedTree + 1} tracePath={stage.path} focusedNodeId={focusedNodeId} focusRequest={focusRequest} />
+            <TreeDiagram key={selectedTree} tree={tree} treeNumber={selectedTree + 1} tracePath={stage.path} focusedNodeId={focusedNodeId} focusRequest={focusRequest} onSelectionChange={setAiNodeId} />
           </div>
           <div hidden={view !== 'trace'}>
             <ProfileTracePanel features={analysis.features} values={profileValues} stage={stage} runningScore={ensembleTrace.runningScores[selectedTree]}
@@ -231,6 +245,7 @@ function Workspace({ model, analysis, result, fileName, client, onClose }: {
               onRegenerate={() => { const next = profileVariant + 1; setProfileVariant(next); updateProfile(createIllustrativeProfile(analysis.features, next)); }}
               onReset={() => { setProfileVariant(0); updateProfile(createIllustrativeProfile(analysis.features)); }} />
           </div>
+          <ContextualAI source={{ model, analysis, result, treeIndex: selectedTree, nodeId: aiNodeId, trace: ensembleTrace }} defaultScope={view === 'trace' ? 'trace' : 'tree'} />
         </section>
       </div>
     </section>
@@ -244,6 +259,7 @@ const PredictorOccurrences = memo(function PredictorOccurrences({ group, client,
   const [offset, setOffset] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [open, setOpen] = useState(false);
   const generation = useRef(0);
   useEffect(() => () => { generation.current += 1; }, []);
   async function page(next: number) {
@@ -257,8 +273,9 @@ const PredictorOccurrences = memo(function PredictorOccurrences({ group, client,
     } finally { if (request === generation.current) setBusy(false); }
   }
   return (
-    <details className="predictor-group">
-      <summary><span title={group.feature}>{group.feature}</span><small>{group.count} splits</small></summary>
+    <details className="predictor-group" open={open}>
+      <summary onClick={event => { event.preventDefault(); setOpen(value => !value); }}><span title={group.feature}>{group.feature}</span><small>{group.count} splits</small></summary>
+      {open && <>
       <ul>{entries.map(entry => <li key={`${entry.treeIndex}-${entry.nodeId}`}><button aria-label={`Tree ${entry.treeIndex + 1}, ${entry.nodeId}, ${entry.split}`} title={entry.split} onClick={() => onSelect(entry.treeIndex, entry.nodeId)}>Tree {entry.treeIndex + 1}<span>{entry.nodeId}</span></button></li>)}</ul>
       {group.count > OCCURRENCE_PAGE_SIZE && <div className="pagination">
         <button disabled={busy || offset === 0} onClick={() => void page(offset - OCCURRENCE_PAGE_SIZE)}>Previous splits</button>
@@ -267,6 +284,7 @@ const PredictorOccurrences = memo(function PredictorOccurrences({ group, client,
       </div>}
       {busy && <p role="status">Loading occurrences…</p>}
       {error && <p role="alert">{error}</p>}
+      </>}
     </details>
   );
 });

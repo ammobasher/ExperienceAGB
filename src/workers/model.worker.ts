@@ -5,8 +5,25 @@ import type { TreeNode } from '../domain/agb';
 import type { WireNode, WorkerReply, WorkerRequest } from '../services/workerProtocol';
 
 let occurrences = new Map<string, PredictorOccurrence[]>();
+let resumeTransfer: (() => void) | undefined;
+let inFlightChunks = 0;
+const MAX_IN_FLIGHT_CHUNKS = 4;
 function send(message: WorkerReply) { self.postMessage(message); }
+async function sendNodes(entries: WireNode[]) {
+  if (inFlightChunks >= MAX_IN_FLIGHT_CHUNKS) {
+    await new Promise<void>(resolve => { resumeTransfer = resolve; });
+  }
+  inFlightChunks += 1;
+  send({ kind: 'nodes', entries });
+}
 self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
+  if (event.data.kind === 'next-chunk') {
+    inFlightChunks = Math.max(0, inFlightChunks - 1);
+    const resume = resumeTransfer;
+    resumeTransfer = undefined;
+    resume?.();
+    return;
+  }
   if (event.data.kind === 'occurrences') {
     const { feature, offset, requestId } = event.data;
     send({ kind: 'occurrences', requestId, entries: (occurrences.get(feature) ?? []).slice(offset, offset + OCCURRENCE_PAGE_SIZE) });
@@ -38,12 +55,11 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       if (right) pending.push({ node: right, parent, side: 'right', treeIndex: current.treeIndex });
       if (left) pending.push({ node: left, parent, side: 'left', treeIndex: current.treeIndex });
       if (entries.length === 512) {
-        send({ kind: 'nodes', entries });
+        await sendNodes(entries);
         entries = [];
-        await new Promise(resolve => setTimeout(resolve, 0));
       }
     }
-    if (entries.length) send({ kind: 'nodes', entries });
+    if (entries.length) await sendNodes(entries);
     send({ kind: 'complete' });
   } catch {
     send({ kind: 'failure', message: 'The local analysis worker could not read or analyse this export. Try another file or reload; no model data was sent.' });

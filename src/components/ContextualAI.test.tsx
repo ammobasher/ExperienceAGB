@@ -1,0 +1,75 @@
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import ContextualAI from './ContextualAI';
+import { fixture } from '../ai/contextFixture';
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+const enable = () => fireEvent.click(screen.getByRole('checkbox', { name: /Enable session-only/ }));
+const model = () => fireEvent.change(screen.getByRole('textbox', { name: /Model identifier/ }), { target: { value: 'owner/model' } });
+describe('contextual AI local-only consent lifecycle', () => {
+  it('starts disabled, explicit selection does not approve sending, never sends while retired', () => {
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+    render(<ContextualAI source={fixture()} defaultScope="tree" />);
+    expect(screen.queryByLabelText(/Session token/)).not.toBeInTheDocument();
+    enable(); model();
+    expect(screen.getByLabelText(/Session token/)).toBeDisabled();
+    expect(screen.getByTestId('ai-payload')).toHaveTextContent('"model": "owner/model"');
+    expect(screen.getByRole('button', { name: /Check provider/ })).toBeDisabled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it('requires terms and exact approval, fails safely and clears approval on retry', async () => {
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+    render(<ContextualAI source={fixture()} defaultScope="tree" />);
+    enable(); model();
+    fireEvent.change(screen.getByLabelText('Provider'), { target: { value: 'github-models' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /I am responsible/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /I reviewed/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Check provider/ }));
+    expect(await screen.findByRole('status')).toHaveTextContent('No request was sent');
+    expect(screen.getByRole('button', { name: /Check provider/ })).toBeDisabled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it('disables credentials, never previews injected input, forgets session input and resets on unmount', () => {
+    const { unmount } = render(<ContextualAI source={fixture()} defaultScope="tree" />);
+    enable(); model();
+    const input = screen.getByLabelText(/Session token/) as HTMLInputElement;
+    expect(input).toBeDisabled();
+    input.value = 'sentinel_secret';
+    expect(screen.getByTestId('ai-payload')).not.toHaveTextContent('sentinel_secret');
+    fireEvent.click(screen.getByRole('button', { name: /Forget token/ }));
+    expect(input.value).toBe('');
+    enable();
+    expect(screen.getByLabelText(/Session token/)).toHaveValue('');
+    (screen.getByLabelText(/Session token/) as HTMLInputElement).value = 'sentinel_secret';
+    unmount();
+    render(<ContextualAI source={fixture()} defaultScope="tree" />);
+    enable();
+    expect(screen.getByLabelText(/Session token/)).toHaveValue('');
+    expect(localStorage.length).toBe(0);
+    expect(sessionStorage.length).toBe(0);
+  });
+  it('clears per-request profile consent when selection/context changes', () => {
+    const source = fixture();
+    const { rerender } = render(<ContextualAI source={source} defaultScope="trace" />);
+    enable(); model();
+    const consent = screen.getByRole('checkbox', { name: /Include up to/ });
+    fireEvent.click(consent);
+    expect(screen.getByTestId('ai-payload').textContent).toContain('\\"value\\":99');
+    rerender(<ContextualAI source={{ ...source, nodeId: 'root' }} defaultScope="trace" />);
+    expect(consent).not.toBeChecked();
+    expect(screen.getByTestId('ai-payload').textContent).not.toContain('\\"value\\":99');
+  });
+  it('changing provider/model or cancelling invalidates profile disclosure consent', () => {
+    render(<ContextualAI source={fixture()} defaultScope="trace" />);
+    enable(); model();
+    const consent = screen.getByRole('checkbox', { name: /Include up to/ });
+    fireEvent.click(consent);
+    fireEvent.change(screen.getByRole('textbox', { name: /Model identifier/ }), { target: { value: 'owner/another-model' } });
+    expect(consent).not.toBeChecked();
+    fireEvent.click(consent);
+    fireEvent.change(screen.getByLabelText('Provider'), { target: { value: 'github-models' } });
+    expect(consent).not.toBeChecked();
+    fireEvent.click(consent);
+    fireEvent.click(screen.getByRole('button', { name: /Cancel and clear/ }));
+    expect(consent).not.toBeChecked();
+  });
+});

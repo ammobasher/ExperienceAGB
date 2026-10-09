@@ -28,6 +28,12 @@ export class ModelWorkerClient {
       const finish = (result: ImportedWorkspace) => {
         signal?.removeEventListener('abort', abort);
         this.failLoad = undefined;
+        nodes.length = 0;
+        workspace = undefined;
+        if (this.worker) this.worker.onmessage = ({ data }) => {
+          if (data.kind === 'occurrences') this.receiveOccurrences(data);
+          else if (data.kind === 'failure') this.fail(new Error(data.message));
+        };
         resolve(result);
       };
       this.failLoad = error => { signal?.removeEventListener('abort', abort); reject(error); };
@@ -41,7 +47,7 @@ export class ModelWorkerClient {
         worker.onmessage = ({ data }) => {
           if (data.kind === 'progress') onProgress?.(data.message);
           else if (data.kind === 'failure') this.fail(new Error(data.message));
-          else if (data.kind === 'invalid') finish({ result: data.result });
+          else if (data.kind === 'invalid') { finish({ result: data.result }); this.dispose(); }
           else if (data.kind === 'metadata') workspace = { result: { ...data.diagnostics, model: { ...data.model, trees: [] } }, analysis: data.analysis };
           else if (data.kind === 'nodes') {
             if (!workspace?.result.model) { this.fail(new Error('Invalid analysis worker response. Reload and retry.')); return; }
@@ -52,21 +58,28 @@ export class ModelWorkerClient {
               else if (entry.side && nodes[entry.parent]) nodes[entry.parent][entry.side] = node;
               else { this.fail(new Error('Invalid analysis worker tree response. Reload and retry.')); return; }
             }
+            try { worker.postMessage({ kind: 'next-chunk' }); }
+            catch { this.fail(new Error('The local analysis worker transfer failed. Reopen the model and retry.')); }
           } else if (data.kind === 'complete') {
             if (workspace?.result.model?.trees.length) finish(workspace);
             else this.fail(new Error('The analysis worker did not return a complete model.'));
           } else if (data.kind === 'occurrences') {
-            const request = this.requests.get(data.requestId);
-            if (request) {
-              clearTimeout(request.timeout);
-              this.requests.delete(data.requestId);
-              request.resolve(data.entries);
-            }
+            this.receiveOccurrences(data);
           }
+
         };
         worker.postMessage({ kind: 'import', file });
       } catch { this.fail(new Error('The local analysis worker could not start. Allow local workers or use a supported browser, then retry.')); }
     });
+  }
+
+  private receiveOccurrences(data: Extract<WorkerReply, { kind: 'occurrences' }>) {
+    const request = this.requests.get(data.requestId);
+    if (request) {
+      clearTimeout(request.timeout);
+      this.requests.delete(data.requestId);
+      request.resolve(data.entries);
+    }
   }
 
   getOccurrences(feature: string, offset: number): Promise<PredictorOccurrence[]> {

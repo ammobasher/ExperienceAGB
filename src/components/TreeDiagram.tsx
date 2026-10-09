@@ -4,7 +4,7 @@ import type { TreeNode } from '../domain/agb';
 import { layoutTree, TREE_NODE_HEIGHT, TREE_NODE_WIDTH } from '../domain/treeLayout';
 import { explainNode } from '../domain/explanations';
 
-interface Props { tree: TreeNode; treeNumber: number; tracePath?: string[]; focusedNodeId?: string; focusRequest?: number }
+interface Props { tree: TreeNode; treeNumber: number; tracePath?: string[]; focusedNodeId?: string; focusRequest?: number; onSelectionChange?: (id: string) => void }
 
 function nodeAt(tree: TreeNode, id: string): TreeNode {
   let node = tree;
@@ -27,7 +27,7 @@ function initialCollapsed(tree: TreeNode, rootId = 'root'): Set<string> {
   return collapsed;
 }
 
-export default function TreeDiagram({ tree, treeNumber, tracePath = [], focusedNodeId, focusRequest }: Props) {
+export default function TreeDiagram({ tree, treeNumber, tracePath = [], focusedNodeId, focusRequest, onSelectionChange }: Props) {
   const [rootId, setRootId] = useState('root');
   const [collapsedIds, setCollapsedIds] = useState(() => initialCollapsed(tree));
   const [selectedId, setSelectedId] = useState('root');
@@ -39,6 +39,7 @@ export default function TreeDiagram({ tree, treeNumber, tracePath = [], focusedN
   const selected = layout.nodes.find(node => node.id === selectedId) ?? layout.nodes[0];
   const explanation = explainNode(selected.node);
   const previewPath = new Set(tracePath);
+  useEffect(() => { onSelectionChange?.(selected.id); }, [selected.id, onSelectionChange]);
   function openPath(id: string, focus: boolean) {
     const parts = id.split('.');
     const base = parts.length > 4 ? parts.slice(0, -2).join('.') : 'root';

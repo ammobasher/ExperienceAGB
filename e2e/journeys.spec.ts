@@ -10,6 +10,30 @@ const model = {
   ] } },
 };
 
+test('predictor selection reveals its ensemble row with a matching or excluding tree filter', async ({ page }) => {
+  const trees = Array.from({ length: 51 }, (_, index) => ({
+    ...model.model.booster.trees[0],
+    split: index === 29 ? 'ChosenFeature < 35' : 'Age < 35',
+  }));
+  await page.goto('/');
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'navigation.json', mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({ ...model, model: { booster: { trees } } })),
+  });
+  await expect(page.getByRole('region', { name: 'Model workspace' })).toBeVisible();
+  const sidebar = page.getByRole('complementary', { name: 'Ensemble and predictor search' });
+  await sidebar.locator('summary').filter({ hasText: 'ChosenFeature' }).click();
+  for (const [search, expected] of [['Tree 3', 'Tree 3'], ['Tree 1', '']]) {
+    await page.getByRole('searchbox', { name: 'Search trees' }).fill(search);
+    await sidebar.getByRole('button', { name: 'Tree 30, root, ChosenFeature < 35', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Tree 30', exact: true })).toBeVisible();
+    await expect(page.getByRole('searchbox', { name: 'Search trees' })).toHaveValue(expected);
+    await expect(sidebar.getByRole('button', { name: '30 Tree 30 2 leaves', exact: true })).toHaveAttribute('aria-current', 'true');
+    expect(await sidebar.locator('.tree-row').count()).toBeLessThanOrEqual(25);
+    await expect(page.locator('.tree-node[data-node-id="root"]')).toBeFocused();
+  }
+});
+
 test('upload, unknown/missing/invalid values, global blockers and repeated field focus', async ({ page }) => {
   await page.goto('/');
   await page.locator('input[type=file]').setInputFiles({ name: 'preview.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(model)) });
@@ -72,7 +96,21 @@ test('oversized uploads are rejected before analysis', async ({ page }, testInfo
   await expect(page.getByRole('button', { name: /Browse files/ })).toBeEnabled();
 });
 
-test('sample network failure, worker failure and cancellation surface recovery', async ({ page }) => {
+test('sample network failure, worker failure and abort-signal cancellation surface recovery', async ({ page }) => {
+  await page.addInitScript(() => {
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = (input, init) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (!url.includes('/sample/') || !Reflect.get(window, 'holdSampleForCancellation')) return nativeFetch(input, init);
+      const signal = init?.signal;
+      if (!signal) return Promise.reject(new Error('Cancellation fixture requires an AbortSignal.'));
+      return new Promise<Response>((_resolve, reject) => {
+        const abort = () => reject(new DOMException('Cancelled test fetch', 'AbortError'));
+        if (signal.aborted) abort();
+        else signal.addEventListener('abort', abort, { once: true });
+      });
+    };
+  });
   await page.route('**/sample/*.json', route => route.fulfill({ status: 404, body: '' }));
   await page.goto('/');
   await page.getByRole('button', { name: /Try the bundled sample/ }).click();
@@ -82,11 +120,11 @@ test('sample network failure, worker failure and cancellation surface recovery',
   await page.getByRole('button', { name: /Try the bundled sample/ }).click();
   await expect(page.getByRole('alert')).toContainText('analysis worker failed');
   await page.unroute('**/assets/model.worker-*');
-  await page.route('**/sample/*.json', async route => { await new Promise(resolve => setTimeout(resolve, 1000)); await route.continue(); });
+  await page.evaluate(() => Reflect.set(window, 'holdSampleForCancellation', true));
   await page.getByRole('button', { name: /Try the bundled sample/ }).click();
   await page.getByRole('button', { name: 'Cancel import' }).click();
   await expect(page.getByRole('alert')).toContainText('Import cancelled');
-  await page.unroute('**/sample/*.json');
+  await page.evaluate(() => Reflect.set(window, 'holdSampleForCancellation', false));
   await page.getByRole('button', { name: /Try the bundled sample/ }).click();
   await expect(page.getByRole('region', { name: 'Model workspace' })).toBeVisible();
 });

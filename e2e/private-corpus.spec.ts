@@ -121,6 +121,48 @@ for (const [label, variable] of [['RBO', 'AGB_PRIVATE_RBO_EXPORT'], ['Web', 'AGB
     const mainHeapAfterCloseAndGC = await pageSession.send('Runtime.getHeapUsage');
     const remainingWorkers = (await browserSession.send('Target.getTargets')).targetInfos.filter(target => target.type === 'worker' && target.url.includes('/assets/model.worker-')).length;
     expect(remainingWorkers, 'closing disposes the model worker').toBe(0);
+    await settle();
+    const firstCloseTasks = await tasks();
+    const repeatedCycles = [{
+      cycle: 1, importMs, editMs,
+      liveMainUsedBytes: Math.max(mainHeapAfterImport.usedSize, mainHeapAfterEdit.usedSize),
+      closedMainUsedBytes: mainHeapAfterCloseAndGC.usedSize,
+      maximumTaskMs: Math.max(0, ...importTasks, ...editorTasks, ...editTasks, ...firstCloseTasks),
+      remainingWorkers,
+    }];
+    await page.setViewportSize({ width: 1280, height: 900 });
+    for (let cycle = 2; cycle <= 5; cycle += 1) {
+      await clearTasks();
+      const cycleImportStart = Date.now();
+      await page.locator('input[type=file]').setInputFiles(file!);
+      await expect(page.getByRole('region', { name: 'Model workspace' })).toBeVisible();
+      await settle();
+      const cycleImportMs = Date.now() - cycleImportStart;
+      await page.getByRole('button', { name: 'Trace a profile' }).click();
+      await page.getByText(/Edit illustrative profile/).click();
+      await page.getByRole('searchbox', { name: 'Filter features' }).fill(condition.feature);
+      const cycleInput = page.getByRole('textbox', { name: `Illustrative ${condition.feature}`, exact: true });
+      const cycleInitial = Number(await cycleInput.inputValue());
+      const cycleChanged = cycleInitial < threshold ? threshold : threshold - Math.max(1, Math.abs(threshold) * 0.000001);
+      expect(Number.isFinite(cycleChanged) && cycleChanged !== cycleInitial).toBe(true);
+      const cycleEditStart = Date.now();
+      await cycleInput.fill(String(cycleChanged));
+      await expect(page.getByRole('button', { name: `Inspect changed Tree ${targetIndex + 1}`, exact: true })).toBeVisible();
+      await settle();
+      const cycleEditMs = Date.now() - cycleEditStart;
+      const liveHeap = await pageSession.send('Runtime.getHeapUsage');
+      await page.getByRole('button', { name: /Open another/ }).click();
+      await expect(page.getByRole('button', { name: /Browse files/ })).toBeVisible();
+      await pageSession.send('HeapProfiler.collectGarbage');
+      const closedHeap = await pageSession.send('Runtime.getHeapUsage');
+      const workers = (await browserSession.send('Target.getTargets')).targetInfos.filter(target => target.type === 'worker' && target.url.includes('/assets/model.worker-')).length;
+      await settle();
+      repeatedCycles.push({
+        cycle, importMs: cycleImportMs, editMs: cycleEditMs,
+        liveMainUsedBytes: liveHeap.usedSize, closedMainUsedBytes: closedHeap.usedSize,
+        maximumTaskMs: Math.max(0, ...await tasks()), remainingWorkers: workers,
+      });
+    }
     await page.reload();
     await expect(page.getByRole('button', { name: /Browse files/ })).toBeVisible();
     expect(await page.evaluate(() => ({ local: Object.keys(localStorage), session: Object.keys(sessionStorage) }))).toEqual({ local: [], session: [] });
@@ -135,8 +177,18 @@ for (const [label, variable] of [['RBO', 'AGB_PRIVATE_RBO_EXPORT'], ['Web', 'AGB
       memory: { unit: 'bytes', kind: 'V8 heap snapshots, not process RSS, peak memory or secure-erasure proof', memoryBefore, mainHeapAfterImport, workerHeapAfterImport, mainHeapAfterEdit, mainHeapAfterCloseAndGC, mainHeapAfterReloadAndGC },
       navigation: { occurrencePageOffset: occurrenceOffset, repeatedExactFocus: true, viewportWidth: 390 },
       remainingWorkersAfterClose: remainingWorkers,
+      repeatedCycles,
+      repeatedBudget: { cycles: 5, liveMainMiB: 128, closedAboveBaselineMiB: 64, warmGrowthMiB: 4, maximumTaskMs: 100 },
     };
     await writeFile(testInfo.outputPath(`private-${label.toLowerCase()}-evidence.json`), JSON.stringify(evidence, null, 2));
+    for (const cycle of repeatedCycles) {
+      expect(cycle.remainingWorkers, 'each authentic close terminates its worker').toBe(0);
+      expect(cycle.liveMainUsedBytes, 'provisional authentic sampled-live heap budget').toBeLessThanOrEqual(128 * 1024 * 1024);
+      expect(cycle.closedMainUsedBytes - memoryBefore.usedSize, 'provisional authentic closed-heap budget').toBeLessThanOrEqual(64 * 1024 * 1024);
+      expect(cycle.maximumTaskMs, 'authentic repeated import/edit/close main-thread blocking').toBeLessThanOrEqual(100);
+    }
+    expect(Math.max(...repeatedCycles.slice(2).map(cycle => cycle.closedMainUsedBytes)) - repeatedCycles[1].closedMainUsedBytes,
+      'authentic closed-heap growth after two warm-up cycles').toBeLessThanOrEqual(4 * 1024 * 1024);
     expect(Math.max(0, ...importTasks), 'authentic import main-thread blocking').toBeLessThanOrEqual(100);
     expect(Math.max(0, ...editorTasks), 'authentic editor main-thread blocking').toBeLessThanOrEqual(100);
     expect(Math.max(0, ...editTasks), 'authentic changed-route edit main-thread blocking').toBeLessThanOrEqual(100);

@@ -10,6 +10,7 @@ export interface WireNode {
 }
 export type WorkerRequest =
   | { kind: 'import'; file: Blob }
+  | { kind: 'next-chunk' }
   | { kind: 'occurrences'; requestId: number; feature: string; offset: number };
 export type WorkerReply =
   | { kind: 'progress'; message: string }

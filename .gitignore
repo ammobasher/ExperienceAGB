@@ -2,6 +2,7 @@ node_modules/
 dist/
 *.tsbuildinfo
 test-results/
+test-results-hosting/
 playwright-report/
 coverage/
 *.log

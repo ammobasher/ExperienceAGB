@@ -19,6 +19,6 @@
 | Illustrative profile | Deterministic synthetic values from known model thresholds/categories. Not a sampled, typical, or real customer. |
 | Missing / invalid / unknown / unsupported | Distinct input states. They do not silently substitute a branch or a zero score. |
 
-A contribution, split, gain, or occurrence is not evidence that changing a feature causes a business outcome. AI is deferred and supplies no calculations or explanations in this version.
+A contribution, split, gain, or occurrence is not evidence that changing a feature causes a business outcome. The optional local AI context preview is not a calculation or explanation from a model. Live AI commentary is blocked because the originally selected GitHub Models service retired; it never changes deterministic facts or verification status.
 
 Authoritative aggregation/export-scaling and explanation reference: [Pega, The Gradient boosting technique](https://docs.pega.com/bundle/platform/page/platform/decision-management/adaptive-gradient-boosting.html), reviewed 2026-10-07. Formula documentation is not an oracle fixture or production certification.
