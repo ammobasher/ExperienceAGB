@@ -1,6 +1,7 @@
 import type { AGBModel, ImportResult, TreeNode, ValidationIssue } from './agb';
-import { parseSplit } from './split';
+import { parseSplit } from './split.ts';
 import type { ParsedSplit } from './split';
+import { parseUniqueJSON } from './strictJson.ts';
 
 export const IMPORT_LIMITS = {
   maxFileSizeBytes: 25 * 1024 * 1024,
@@ -28,8 +29,8 @@ export function parseAGBText(text: string, fileSizeBytes: number): ImportResult 
   const issue = sizeIssue(fileSizeBytes);
   if (issue) return failed([issue]);
   let value: unknown;
-  try { value = JSON.parse(text); }
-  catch { return failed([{ severity: 'error', path: '$', message: 'This file is not valid JSON.' }]); }
+  try { value = parseUniqueJSON(text); }
+  catch (cause) { return failed([{ severity: 'error', path: '$', message: cause instanceof Error && cause.message.startsWith('Duplicate object keys') ? cause.message : 'This file is not valid JSON.' }]); }
   return validateAGBExport(value, fileSizeBytes);
 }
 

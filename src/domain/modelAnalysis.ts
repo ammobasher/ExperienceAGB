@@ -3,6 +3,10 @@ import { buildProfileFeatures } from './profileTrace';
 import type { ProfileFeature } from './profileTrace';
 import { indexPredictorOccurrences } from './predictorSearch';
 import type { PredictorOccurrence } from './predictorSearch';
+import { computeModelEvidence } from './modelEvidence';
+import type { ModelEvidence } from './modelEvidence';
+import { computeModelAudit } from './modelAudit';
+import type { ModelAudit } from './modelAudit';
 
 export const OCCURRENCE_PAGE_SIZE = 20;
 export interface TreeFacts {
@@ -22,8 +26,11 @@ export interface ModelAnalysis {
   treeFacts: TreeFacts[];
   predictors: PredictorGroup[];
   timings?: { parseMs: number; analysisMs: number };
+  modelEvidence?: ModelEvidence;
+  audit?: ModelAudit;
+  sourceDigest?: string;
 }
-export function analyseModel(model: AGBModel): { summary: ModelAnalysis; occurrences: Map<string, PredictorOccurrence[]> } {
+export function analyseModel(model: AGBModel, fileBytes?: number): { summary: ModelAnalysis; occurrences: Map<string, PredictorOccurrence[]>; categories: Map<string, Set<string>> } {
   const occurrences = new Map<string, PredictorOccurrence[]>();
   for (const occurrence of indexPredictorOccurrences(model.trees)) {
     const group = occurrences.get(occurrence.feature) ?? [];
@@ -49,13 +56,16 @@ export function analyseModel(model: AGBModel): { summary: ModelAnalysis; occurre
     facts.predictors = [...predictors];
     return facts;
   });
+  const modelEvidence = computeModelEvidence(model, fileBytes);
+  const { audit, categories } = computeModelAudit(model, modelEvidence);
   return {
     summary: {
-      features: buildProfileFeatures(model.trees), treeFacts,
+      features: buildProfileFeatures(model.trees), treeFacts, modelEvidence, audit,
       predictors: [...occurrences].map(([feature, entries]) => ({
         feature, count: entries.length, initialOccurrences: entries.slice(0, OCCURRENCE_PAGE_SIZE),
       })),
     },
     occurrences,
+    categories,
   };
 }

@@ -13,6 +13,10 @@ import type { ImportedWorkspace } from './services/workerProtocol';
 import TreeDiagram from './components/TreeDiagram';
 import ProfileTracePanel from './components/ProfileTracePanel';
 import ContextualAI from './components/ContextualAI';
+import ModelEvolution from './components/ModelEvolution';
+import TechnicalTerms, { Term } from './components/TechnicalTerms';
+import ModelAudit from './components/ModelAudit';
+import type { ModelTerm } from './domain/glossary';
 
 const SAMPLE_URL = `${import.meta.env.BASE_URL}sample/export_PA_WebBuyNow_AGB_sample.json`;
 const TREE_PAGE_SIZE = 25;
@@ -29,13 +33,16 @@ export default function App() {
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [showComparison, setShowComparison] = useState(false);
+  const comparisonTitle = useRef<HTMLHeadingElement>(null);
   useEffect(() => () => { abortRef.current?.abort(); client.dispose(); }, [client]);
   useEffect(() => {
     if (restoreBrowseFocus.current && !workspace && !busy) {
       restoreBrowseFocus.current = false;
       browseRef.current?.focus();
     }
-  }, [workspace, busy]);
+  }, [workspace, busy, showComparison]);
+  useEffect(() => { if (showComparison) comparisonTitle.current?.focus(); }, [showComparison]);
 
   async function importFile(file: Blob, name: string, signal: AbortSignal) {
     const imported = await client.load(file, signal, setStatus);
@@ -99,13 +106,19 @@ export default function App() {
       </header>
       {workspace?.result.model && workspace.analysis ? (
         <Workspace model={workspace.result.model} analysis={workspace.analysis} result={workspace.result} fileName={fileName} client={client} onClose={closeModel} />
+      ) : showComparison ? (
+        <section className="workspace" aria-label="Snapshot comparison workspace">
+          <div className="workspace-heading"><h1 ref={comparisonTitle} tabIndex={-1}>Compare model snapshots</h1><button className="button button-quiet" onClick={() => { restoreBrowseFocus.current = true; setShowComparison(false); }}>Close comparison (clears snapshots)</button></div>
+          <TechnicalTerms />
+          <ModelEvolution />
+        </section>
       ) : (
         <section className="start-layout" aria-labelledby="start-title">
           <div className="start-copy">
             <p className="eyebrow">PEGA MODEL EXPLORER <span>/</span> 01</p>
             <h1 id="start-title">Open a model.<br /><em>Find its shape.</em></h1>
             <p className="intro">Explore the observed Pega sample and UUID-v4-tagged export structures in a focused, local workspace. Other variants require adapter evidence; scoring remains unverified.</p>
-            <div className="format-note"><span className="format-glyph">{ }</span><span><b>JSON exports only</b><small>Up to 25 MB · your file stays on this device</small></span></div>
+            <div className="format-note"><span className="format-glyph">{ }</span><span><b>JSON exports only</b><small>Up to 25 MB · local analysis; optional AI requires sharing approval</small></span></div>
           </div>
           <div className="open-panel" aria-busy={busy}>
             <div className="panel-heading"><span>MODEL INPUT</span><span className="step-index">A / 01</span></div>
@@ -119,6 +132,7 @@ export default function App() {
             <button className="sample-action" onClick={() => void openSample()} disabled={busy}>
               <span className="sample-icon">↗</span><span><b>Try the bundled sample</b><small>Small demonstration model</small></span><span className="sample-arrow">→</span>
             </button>
+            <button className="button button-quiet" disabled={busy} onClick={() => setShowComparison(true)}>Compare model snapshots</button>
             {busy && <><p role="status">{status}</p><button className="button button-quiet" onClick={cancelImport}>Cancel import</button></>}
             {error && <p className="error-message" role="alert">{error}</p>}
             {!!workspace?.result.issues.length && <ValidationReport result={workspace.result} />}
@@ -135,7 +149,7 @@ function Workspace({ model, analysis, result, fileName, client, onClose }: {
 }) {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const [selectedTree, setSelectedTree] = useState(0);
-  const [view, setView] = useState<'explore' | 'trace'>('explore');
+  const [view, setView] = useState<'explore' | 'trace' | 'evolution' | 'insights'>('explore');
   const [navigationOpen, setNavigationOpen] = useState(false);
   const [treePage, setTreePage] = useState(0);
   const [treeSearch, setTreeSearch] = useState('');
@@ -148,7 +162,6 @@ function Workspace({ model, analysis, result, fileName, client, onClose }: {
   const [predictorPage, setPredictorPage] = useState(0);
   const [focusedNodeId, setFocusedNodeId] = useState<string>();
   const [focusRequest, setFocusRequest] = useState(0);
-  const [aiNodeId, setAiNodeId] = useState('root');
   const ensembleTrace = useMemo(() => traceEnsemblePreview(model.trees, profileValues, analysis.features), [model.trees, profileValues, analysis.features]);
   const changedTrees = useMemo(() => previousTrace.current ? changedTreeIndices(previousTrace.current, ensembleTrace) : [], [ensembleTrace]);
   const tree = model.trees[selectedTree], facts = analysis.treeFacts[selectedTree], stage = ensembleTrace.stages[selectedTree];
@@ -179,7 +192,7 @@ function Workspace({ model, analysis, result, fileName, client, onClose }: {
         <div><p className="eyebrow">MODEL WORKSPACE <span>/</span> OBSERVED STRUCTURE VALIDATED</p><h1 ref={titleRef} tabIndex={-1}>{fileName}</h1><p className="workspace-subtitle">Pega Adaptive Gradient Boosting <span className="version-tag">Export tag: {model.modelVersion}</span></p></div>
         <button className="button button-quiet" onClick={onClose}>Open another <span>↗</span></button>
       </div>
-      <p className="preview-notice">Unverified export preview. Pega oracle and live-CDH scoring parity are not established. Optional AI context previews stay local; GitHub Models requests are blocked because the service is retired.</p>
+      <p className="preview-notice">Unverified export preview. Pega oracle and live-CDH scoring parity are not established. Every tree and node is analyzed locally. The optional AI explanation at the bottom shares bounded whole-model evidence only after explicit approval, never the raw export, using a local server and the selected cloud provider.</p>
       <details className="model-metadata"><summary>Model metadata and metric definitions</summary>
         <dl>
           <dt>Adapter provenance</dt><dd>{model.modelVersion === '2' ? 'Observed bundled sample-v2 shape' : 'Observed UUID-v4-tagged export structure'}; compatibility and scoring are not Pega-oracle certified. The export tag is preserved, not assumed to be a schema version.</dd>
@@ -190,17 +203,20 @@ function Workspace({ model, analysis, result, fileName, client, onClose }: {
           {analysis.timings && <><dt>Local worker processing</dt><dd data-worker-parse-ms={analysis.timings.parseMs} data-worker-analysis-ms={analysis.timings.analysisMs}>Read/parse/validate: {analysis.timings.parseMs.toFixed(1)} ms; indexing: {analysis.timings.analysisMs.toFixed(1)} ms. These are local diagnostics, not main-thread blocking durations.</dd></>}
         </dl>
       </details>
+      <TechnicalTerms />
       {!!result.issues.length && <ValidationReport result={result} />}
       <div className="metrics-row" aria-label="Model structure summary">
-        <Metric label="Trees" value={model.trees.length.toLocaleString()} /><Metric label="Predictors" value={analysis.predictors.length.toLocaleString()} />
-        <Metric label="Tree nodes" value={result.nodeCount.toLocaleString()} /><Metric label="Deepest path" value={`${result.maxDepth + 1} levels`} />
+        <Metric label="Trees in ensemble" term="trees" value={model.trees.length.toLocaleString()} /><Metric label="Unique predictors in ensemble" term="predictors" value={analysis.predictors.length.toLocaleString()} />
+        <Metric label="Nodes across all trees" term="ensembleNodes" value={result.nodeCount.toLocaleString()} /><Metric label="Deepest path in ensemble" term="depth" value={`${result.maxDepth + 1} levels`} />
       </div>
       {ensembleTrace.arithmeticIssue && <p className="error-message" role="alert">{ensembleTrace.arithmeticIssue}</p>}
       <div className="workspace-actions" aria-label="Workspace tasks">
         <button className="button button-quiet" aria-pressed={view === 'explore'} onClick={() => setView('explore')}>Explore trees</button>
         <button className="button button-quiet" aria-pressed={view === 'trace'} onClick={() => setView('trace')}>Trace a profile</button>
+        <button className="button button-quiet" aria-pressed={view === 'evolution'} onClick={() => setView('evolution')}>Model evolution</button>
+        <button className="button button-quiet" aria-pressed={view === 'insights'} onClick={() => setView('insights')}>Model insights</button>
       </div>
-      <div className="explorer-layout">
+      <div className="explorer-layout" aria-hidden={view === 'evolution' || view === 'insights'} style={view === 'evolution' || view === 'insights' ? { contentVisibility: 'hidden', height: 0, minHeight: 0, overflow: 'hidden' } : undefined}>
         <aside className="tree-index" aria-label="Ensemble and predictor search">
           <button className="mobile-navigation-toggle" aria-expanded={navigationOpen} aria-controls="workspace-navigation" onClick={() => setNavigationOpen(value => !value)}>Find a tree or predictor</button>
           <div id="workspace-navigation" className={`navigation-content${navigationOpen ? ' is-open' : ''}`}>
@@ -229,12 +245,12 @@ function Workspace({ model, analysis, result, fileName, client, onClose }: {
         <section className="tree-inspector" aria-labelledby="tree-title">
           <div className="inspector-topline"><span>STRUCTURE / TREE {selectedTree + 1}</span><span>INTERACTIVE TREE MAP</span></div><h2 id="tree-title">Tree {selectedTree + 1}</h2>
           <div className="tree-facts">
-            <div><span>Nodes in tree</span><b>{facts.nodeCount}</b></div><div><span>Leaves</span><b>{facts.leaves}</b></div>
-            <div><span>Exported sampleCount</span><b>{tree.sampleCount.toLocaleString()}</b></div><div><span>Serialized leaf-score range</span><b>{formatScore(facts.minimum)} to {formatScore(facts.maximum)}</b></div>
+            <div><Term term="treeNodes" label="Total nodes in selected tree" /><b>{facts.nodeCount}</b></div><div><Term term="leaves" label="Total leaves in selected tree" /><b>{facts.leaves}</b></div>
+            <div><Term term="sampleCount" /><b>{tree.sampleCount.toLocaleString()}</b></div><div><Term term="leafScore" label="Serialized leaf-score range" /><b>{formatScore(facts.minimum)} to {formatScore(facts.maximum)}</b></div>
           </div>
           <p className="diagram-guidance">Tree {selectedTree + 1} is one sequence of questions. An illustrative profile reaches one of its {facts.leaves} leaves and selects one additive contribution.</p>
-          <div hidden={view !== 'explore'}>
-            <TreeDiagram key={selectedTree} tree={tree} treeNumber={selectedTree + 1} tracePath={stage.path} focusedNodeId={focusedNodeId} focusRequest={focusRequest} onSelectionChange={setAiNodeId} />
+          <div aria-hidden={view !== 'explore'} style={view !== 'explore' ? { contentVisibility: 'hidden', height: 0, overflow: 'hidden' } : undefined}>
+            <TreeDiagram key={selectedTree} tree={tree} treeNumber={selectedTree + 1} nodeCount={facts.nodeCount} leafCount={facts.leaves} tracePath={stage.path} focusedNodeId={focusedNodeId} focusRequest={focusRequest} />
           </div>
           <div hidden={view !== 'trace'}>
             <ProfileTracePanel features={analysis.features} values={profileValues} stage={stage} runningScore={ensembleTrace.runningScores[selectedTree]}
@@ -245,9 +261,11 @@ function Workspace({ model, analysis, result, fileName, client, onClose }: {
               onRegenerate={() => { const next = profileVariant + 1; setProfileVariant(next); updateProfile(createIllustrativeProfile(analysis.features, next)); }}
               onReset={() => { setProfileVariant(0); updateProfile(createIllustrativeProfile(analysis.features)); }} />
           </div>
-          <ContextualAI source={{ model, analysis, result, treeIndex: selectedTree, nodeId: aiNodeId, trace: ensembleTrace }} defaultScope={view === 'trace' ? 'trace' : 'tree'} />
         </section>
       </div>
+      <div hidden={view !== 'evolution'}><ModelEvolution /></div>
+      {view === 'insights' && <ModelAudit analysis={analysis} client={client} onNode={selectOccurrence} onPredictor={predictor => { setPredictorSearch(predictor.feature); setPredictorPage(0); selectOccurrence(predictor.firstOccurrence.treeIndex, predictor.firstOccurrence.nodeId); }} />}
+      <ContextualAI source={{ model, analysis, result, treeIndex: 0, nodeId: 'root', trace: ensembleTrace }} defaultScope="model" modelExplanation />
     </section>
   );
 }
@@ -291,5 +309,5 @@ const PredictorOccurrences = memo(function PredictorOccurrences({ group, client,
 function ValidationReport({ result }: { result: ImportResult }) {
   return <details className="validation-report" open={!result.model}><summary>Validation report ({result.issues.length} diagnostics)</summary><ul>{result.issues.map((issue, index) => <li key={index}><b>{issue.severity}</b> <code>{issue.path}</code>: {issue.message}</li>)}</ul></details>;
 }
-function Metric({ label, value }: { label: string; value: string }) { return <div className="metric"><span>{label}</span><b>{value}</b></div>; }
+function Metric({ label, value, term }: { label: string; value: string; term: ModelTerm }) { return <div className="metric"><Term term={term} label={label} /><b>{value}</b></div>; }
 function formatScore(value: number): string { return `${value >= 0 ? '+' : ''}${value.toFixed(4)}`; }

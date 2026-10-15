@@ -56,6 +56,52 @@ afterEach(() => {
 });
 
 describe('model workspace integration', () => {
+  it('explains ensemble, selected-tree and drawing scopes and preserves the model while opening evolution', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: async () => JSON.stringify(model) }));
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Try the bundled sample/ }));
+    await screen.findByRole('heading', { name: 'Tree 1' });
+    const metrics = screen.getByLabelText('Model structure summary');
+    expect(within(metrics).getByText('Nodes across all trees')).toBeInTheDocument();
+    expect(metrics.querySelectorAll('b')[2]).toHaveTextContent('6');
+    fireEvent.click(within(metrics).getByText('Nodes across all trees'));
+    expect(within(metrics).getByText(/summed across every tree/)).toBeVisible();
+    const facts = document.querySelector('.tree-facts')!;
+    expect(within(facts as HTMLElement).getByText('Total nodes in selected tree')).toBeInTheDocument();
+    expect(facts.querySelector('b')).toHaveTextContent('3');
+    fireEvent.click(screen.getByRole('button', { name: 'Model evolution' }));
+    expect(screen.getByRole('region', { name: 'Model evolution' })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'Tree 1' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Explore trees' }));
+    expect(screen.getByRole('heading', { name: 'Tree 1' })).toBeVisible();
+    expect(document.querySelectorAll('.contextual-ai')).toHaveLength(1);
+  });
+
+  it('opens a standalone comparison and restores chooser focus when it is closed', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Compare model snapshots' }));
+    expect(screen.getByRole('heading', { name: 'Compare model snapshots' })).toHaveFocus();
+    expect(screen.getByRole('region', { name: 'Model evolution' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Close comparison (clears snapshots)' }));
+    expect(screen.getByRole('button', { name: /Browse files/ })).toHaveFocus();
+  });
+  it('shows exactly one whole-model AI panel after the explorer in both views', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: async () => JSON.stringify(model) }));
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Try the bundled sample/ }));
+    await screen.findByRole('heading', { name: 'Tree 1' });
+    const workspace = screen.getByRole('region', { name: 'Model workspace' });
+    const panel = within(workspace).getByRole('region', { name: 'Model AI explanation' });
+    expect(workspace.querySelectorAll('.contextual-ai')).toHaveLength(1);
+    expect(workspace.lastElementChild).toBe(panel);
+    expect(screen.queryByRole('region', { name: 'Contextual AI commentary' })).not.toBeInTheDocument();
+    expect(within(panel).getByRole('checkbox', { name: /Enable optional whole-model/ })).not.toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Trace a profile' }));
+    expect(workspace.lastElementChild).toBe(panel);
+    expect(workspace.querySelectorAll('.contextual-ai')).toHaveLength(1);
+    expect(within(panel).queryByRole('combobox', { name: 'Context selection' })).not.toBeInTheDocument();
+  });
+
   it.each([
     { search: 'Tree 3', expectedSearch: 'Tree 3' },
     { search: 'Tree 1', expectedSearch: '' },
@@ -116,7 +162,8 @@ describe('model workspace integration', () => {
     render(<App />);
 
     expect(screen.getByRole('button', { name: /Browse files/ })).toBeInTheDocument();
-    expect(screen.getAllByRole('button')).toHaveLength(2);
+    expect(screen.getAllByRole('button')).toHaveLength(3);
+    expect(screen.getByRole('button', { name: 'Compare model snapshots' })).toBeInTheDocument();
   });
 
   it('announces an actionable error when the selected file is not JSON', async () => {

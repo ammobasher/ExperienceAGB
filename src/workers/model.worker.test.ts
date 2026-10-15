@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WorkerReply, WorkerRequest } from '../services/workerProtocol';
+import { Blob as NodeBlob } from 'node:buffer';
+import { webcrypto } from 'node:crypto';
 
 class TextBlob extends Blob {
   constructor(private readonly content: string) { super([content]); }
   override text(): Promise<string> { return Promise.resolve(this.content); }
+  override arrayBuffer(): Promise<ArrayBuffer> { return new NodeBlob([this.content]).arrayBuffer(); }
 }
 
 function tree(depth: number): object {
@@ -23,6 +26,8 @@ describe('bounded worker transfer', () => {
       postMessage: (message: WorkerReply) => { messages.push(message); },
     };
     vi.stubGlobal('self', port);
+    vi.stubGlobal('crypto', webcrypto);
+    vi.stubGlobal('Blob', NodeBlob);
     await import('./model.worker');
     const pending = port.onmessage!(new MessageEvent('message', { data: {
       kind: 'import', file: new TextBlob(JSON.stringify({
@@ -47,5 +52,13 @@ describe('bounded worker transfer', () => {
     const page = messages.at(-1);
     if (page?.kind !== 'occurrences') throw new Error('Missing occurrence response.');
     expect(page.entries).toHaveLength(20);
+    await port.onmessage!(new MessageEvent('message', { data: { kind: 'audit-export', requestId: 2, format: 'json' } }));
+    const exported = messages.at(-1);
+    if (exported?.kind !== 'audit-export') throw new Error('Missing local export response.');
+    const bundle = JSON.parse(await exported.file.text());
+    expect(bundle.manifest.source.digest).toMatch(/^[a-f0-9]{64}$/);
+    expect(bundle.manifest.coverage.nodes).toBe(4103);
+    expect(bundle.figures.treeOrder).toHaveLength(9);
+    expect(bundle.manifest.analysis.trees[0]).not.toHaveProperty('left');
   });
 });

@@ -34,20 +34,20 @@ interface BranchData {
 
 export function layoutTree(rootNode: TreeNode, collapsedIds: ReadonlySet<string> = new Set(), rootId = 'root'): TreeLayout {
   const rootData: BranchData = { id: rootId, node: rootNode };
-  let visibleCount = 1;
   const root = hierarchy(rootData, (branch) => {
     if (collapsedIds.has(branch.id)) return undefined;
     const children: BranchData[] = [];
     if (branch.node.left) children.push({ id: `${branch.id}.L`, node: branch.node.left });
     if (branch.node.right) children.push({ id: `${branch.id}.R`, node: branch.node.right });
-    if (visibleCount + children.length > 127) return undefined;
-    visibleCount += children.length;
     return children.length ? children : undefined;
   });
   const positionedRoot = createTreeLayout<BranchData>().nodeSize([248, 138])(root);
   const unshifted = positionedRoot.descendants();
-  const minX = Math.min(...unshifted.map((item) => item.x));
-  const maxX = Math.max(...unshifted.map((item) => item.x));
+  let minX = Infinity, maxX = -Infinity;
+  for (const item of unshifted) {
+    minX = Math.min(minX, item.x);
+    maxX = Math.max(maxX, item.x);
+  }
   const paddingX = 28;
   const paddingY = 26;
   const nodesById = new Map<string, PositionedTreeNode>();

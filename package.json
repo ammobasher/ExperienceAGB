@@ -7,11 +7,14 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "start:local": "node scripts/ai-host.mjs",
+    "test:server": "node --test scripts/preview-host.test.mjs scripts/ai-host.test.mjs scripts/copilot.test.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@github/copilot-sdk": "1.0.21",
     "d3-hierarchy": "^3.1.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

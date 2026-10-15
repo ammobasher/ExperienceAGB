@@ -1,6 +1,7 @@
 import type { TreeNode } from '../domain/agb';
 import type { PredictorOccurrence } from '../domain/predictorSearch';
-import type { ImportedWorkspace, WorkerReply, WorkerRequest } from './workerProtocol';
+import type { EvolutionImportResult, ImportedWorkspace, WorkerReply, WorkerRequest } from './workerProtocol';
+import type { AuditExportFormat } from '../domain/auditExport';
 
 interface WorkerPort {
   onmessage: ((event: MessageEvent<WorkerReply>) => void) | null;
@@ -16,6 +17,7 @@ export class ModelWorkerClient {
   private messageErrorListener?: EventListener;
   private requests = new Map<number, { resolve: (entries: PredictorOccurrence[]) => void; reject: (error: Error) => void; timeout: ReturnType<typeof setTimeout> }>();
   private requestId = 0;
+  private exports = new Map<number, { resolve: (file: Blob) => void; reject: (error: Error) => void; timeout: ReturnType<typeof setTimeout> }>();
   constructor(private factory: () => WorkerPort = () => new Worker(new URL('../workers/model.worker.ts', import.meta.url), { type: 'module' })) {}
 
   load(file: Blob, signal?: AbortSignal, onProgress?: (message: string) => void): Promise<ImportedWorkspace> {
@@ -32,6 +34,7 @@ export class ModelWorkerClient {
         workspace = undefined;
         if (this.worker) this.worker.onmessage = ({ data }) => {
           if (data.kind === 'occurrences') this.receiveOccurrences(data);
+          else if (data.kind === 'audit-export' || data.kind === 'audit-export-error') this.receiveExport(data);
           else if (data.kind === 'failure') this.fail(new Error(data.message));
         };
         resolve(result);
@@ -39,11 +42,7 @@ export class ModelWorkerClient {
       this.failLoad = error => { signal?.removeEventListener('abort', abort); reject(error); };
       signal?.addEventListener('abort', abort, { once: true });
       try {
-        const worker = this.factory();
-        this.worker = worker;
-        worker.onerror = () => this.fail(new Error('The local analysis worker failed. Reload and try again; no synchronous fallback or model upload was attempted.'));
-        this.messageErrorListener = () => this.fail(new Error('The local analysis worker response could not be read. Reload and retry; no model upload was attempted.'));
-        worker.addEventListener('messageerror', this.messageErrorListener);
+        const worker = this.startWorker();
         worker.onmessage = ({ data }) => {
           if (data.kind === 'progress') onProgress?.(data.message);
           else if (data.kind === 'failure') this.fail(new Error(data.message));
@@ -73,6 +72,42 @@ export class ModelWorkerClient {
     });
   }
 
+  readEvolution(file: Blob, signal?: AbortSignal, onProgress?: (message: string) => void): Promise<EvolutionImportResult> {
+    this.dispose();
+    return new Promise((resolve, reject) => {
+      if (signal?.aborted) { reject(new DOMException('Import cancelled.', 'AbortError')); return; }
+      const abort = () => this.dispose();
+      this.failLoad = error => { signal?.removeEventListener('abort', abort); reject(error); };
+      signal?.addEventListener('abort', abort, { once: true });
+      const finish = (result: EvolutionImportResult) => {
+        signal?.removeEventListener('abort', abort);
+        this.failLoad = undefined;
+        this.dispose();
+        resolve(result);
+      };
+      try {
+        const worker = this.startWorker();
+        worker.onmessage = ({ data }) => {
+          if (data.kind === 'progress') onProgress?.(data.message);
+          else if (data.kind === 'evolution-summary') finish({ summary: data.summary, issues: data.issues });
+          else if (data.kind === 'invalid') finish({ issues: data.result.issues });
+          else if (data.kind === 'failure') this.fail(new Error(data.message));
+          else this.fail(new Error('The evolution worker returned an unexpected response. Retry the export; no model was uploaded.'));
+        };
+        worker.postMessage({ kind: 'evolution-import', file });
+      } catch { this.fail(new Error('The local analysis worker could not start. Allow local workers or use a supported browser, then retry.')); }
+    });
+  }
+
+  private startWorker() {
+    const worker = this.factory();
+    this.worker = worker;
+    worker.onerror = () => this.fail(new Error('The local analysis worker failed. Reload and try again; no synchronous fallback or model upload was attempted.'));
+    this.messageErrorListener = () => this.fail(new Error('The local analysis worker response could not be read. Reload and retry; no model upload was attempted.'));
+    worker.addEventListener('messageerror', this.messageErrorListener);
+    return worker;
+  }
+
   private receiveOccurrences(data: Extract<WorkerReply, { kind: 'occurrences' }>) {
     const request = this.requests.get(data.requestId);
     if (request) {
@@ -100,12 +135,31 @@ export class ModelWorkerClient {
     this.failLoad = undefined;
     for (const request of this.requests.values()) { clearTimeout(request.timeout); request.reject(error); }
     this.requests.clear();
+    for (const request of this.exports.values()) { clearTimeout(request.timeout); request.reject(error); }
+    this.exports.clear();
     if (this.worker) {
       this.worker.onmessage = null; this.worker.onerror = null;
       if (this.messageErrorListener) this.worker.removeEventListener('messageerror', this.messageErrorListener);
       this.messageErrorListener = undefined;
       this.worker.terminate(); this.worker = undefined;
     }
+  }
+  getAuditExport(format: AuditExportFormat): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      if (!this.worker) { reject(new Error('The local analysis worker is unavailable. Reopen the model.')); return; }
+      const requestId = ++this.requestId;
+      const timeout = setTimeout(() => { this.exports.delete(requestId); reject(new Error('The local audit export timed out. Retry or reopen the model.')); }, 30000);
+      this.exports.set(requestId, { resolve, reject, timeout });
+      try { this.worker.postMessage({ kind: 'audit-export', requestId, format }); }
+      catch { this.fail(new Error('The local audit export request failed. Reopen the model; no data was uploaded.')); }
+    });
+  }
+  private receiveExport(data: Extract<WorkerReply, { kind: 'audit-export' | 'audit-export-error' }>) {
+    const request = this.exports.get(data.requestId);
+    if (!request) return;
+    clearTimeout(request.timeout); this.exports.delete(data.requestId);
+    if (data.kind === 'audit-export') request.resolve(data.file);
+    else request.reject(new Error(data.message));
   }
   dispose() { this.fail(new DOMException('Import cancelled.', 'AbortError')); }
 }

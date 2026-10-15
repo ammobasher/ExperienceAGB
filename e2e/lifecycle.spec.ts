@@ -3,6 +3,9 @@ import { writeFile } from 'node:fs/promises';
 import { cpus } from 'node:os';
 import { observePerformance, readPerformance, settlePerformance } from './performanceHarness';
 
+// Keep benchmark tracing from traversing the complete diagram on every action.
+test.use({ trace: { mode: 'retain-on-failure', snapshots: false, screenshots: false } });
+
 const MiB = 1024 * 1024;
 const budgets = {
   cycles: 5,
@@ -46,16 +49,16 @@ test('five large import/edit/close cycles bound sampled heap retention and termi
       const importMs = Date.now() - start;
       const imported = await heap();
       expect(await workerCount(), 'one worker owns each active workspace').toBe(1);
-      await page.getByRole('button', { name: 'Trace a profile' }).click();
-      await page.getByText(/Edit illustrative profile/).click();
-      const value = page.getByRole('textbox', { name: 'Illustrative Feature1', exact: true });
+      await page.locator('.workspace-actions').getByRole('button', { name: 'Trace a profile' }).click();
+      await page.locator('.profile-editor summary').click();
+      const value = page.locator('.profile-fields').getByRole('textbox', { name: 'Illustrative Feature1', exact: true });
       expect(await value.inputValue()).not.toBe('0');
       await value.fill('0');
-      await expect(page.getByRole('button', { name: 'Inspect changed Tree 1', exact: true })).toBeVisible();
+      await expect(page.locator('.profile-trace').getByRole('button', { name: 'Inspect changed Tree 1', exact: true })).toBeVisible();
       await expect(page.locator('.stage-preview-result')).toContainText('Left');
       await settlePerformance(page);
       const edited = await heap();
-      await page.getByRole('button', { name: /Open another/ }).click();
+      await page.locator('.workspace-heading').getByRole('button', { name: /Open another/ }).click();
       await expect(page.getByRole('region', { name: 'Model workspace' })).toHaveCount(0);
       await expect(page.getByRole('button', { name: /Browse files/ })).toBeVisible();
       await settlePerformance(page);

@@ -4,9 +4,187 @@
 
 Run `npm run test:e2e` using the production preview, not the Vite development server. Browser tests are serial to reduce contention. `test-results` retains benchmark JSON and axe reports; failures retain screenshots and traces.
 
-The plan's provisional target is **no application analysis task blocking the main thread for more than 100 ms**. Performance tests assert the exact main-thread long-task duration, not total file size or a successful render as a proxy. They also bound SVG nodes, predictor groups, and editor fields.
+The plan's provisional target is **no application analysis task blocking the main thread for more than 100 ms**. Performance tests assert the exact main-thread long-task duration, not total file size or a successful render as a proxy. They verify complete selected-tree node/leaf/link counts, while keeping ensemble/predictor navigation and editor fields paginated.
 
 The browser Long Tasks API records tasks of at least 50 ms. An empty recorded list means no task reached that reporting threshold during the measured interval; it does not mean processing took zero time. Worker processing can take longer while the main thread remains available and import remains cancelable. End-to-end durations include browser automation overhead.
+
+## v6.4 local analytics acceptance, 2026-10-15
+
+The final complete production Chrome run passed **40 checks**, with the two
+unconfigured private-corpus cases skipped. The six added audit journeys cover
+desktop/mobile charts and exact tables, keyboard links into the complete tree,
+axe A/AA, one bottom AI panel, no unapproved writes, actual worker source/category
+hashes, sensitive-download approval, script-free offline HTML with no HTTP(S)
+requests, snapshot gain/threshold/category comparisons and duplicate-key errors.
+Desktop/mobile predictor and history screenshots were inspected. SVG charts
+retain readable dimensions in keyboard-focusable horizontal scroll regions;
+the page itself does not overflow at 390 px.
+
+All final measurements below came from the same complete run, using generated
+models, production assets and installed Chrome on the shared Windows host:
+
+| Workload | Final observation |
+|---|---|
+| 132,990-node forest, complete selected tree, editor and actual changed-route edit | Import/drawing 1,928 ms; edit 152 ms; no task reached the Long Tasks API's 50 ms reporting threshold across the interval |
+| 8,191-node tree / 4,095 predictors, complete drawing and profile editor | Maximum observed task 53 ms |
+| Same node/predictor counts, insights, predictor/context tables and worker JSON audit preparation | Maximum observed task 78 ms; complete diagram retained, tables rendered 20 rows each, actual export reply observed |
+| Five large import/edit/close cycles | No observed task at least 50 ms; maximum sampled live renderer heap 25,655,588 bytes; warmed closed growth 432,724 bytes; zero remaining workers after each close |
+
+The unchanged 100 ms blocking, workspace-readiness, complete-tree, transfer and
+retention assertions all passed. The new audit benchmark measures the entire
+file-import, complete-drawing, insight-navigation and export-preparation interval,
+not just export completion. Worker calculations, exact JSON serialization and
+HTML/CSV/SVG preparation do not run on the main thread.
+
+Earlier verification attempts remain relevant. The first expanded browser run
+passed 39 cases and skipped two but failed the new audit gate at **127 ms**;
+that task preceded the first worker progress message. Its in-memory upload
+fixture was replaced with a temporary-file upload, consistent with the existing
+performance suite and native file-opening journey. The isolated six-case audit
+rerun and final complete run passed without raising a threshold or dropping
+coverage. This does not establish host load or upload instrumentation as the
+sole cause of the earlier failure. Benchmark traces omit full-DOM snapshots/
+screenshots, as existing performance cases do; functional checks retain them.
+
+The default unit run had one progressive-drawing wait failure; a bounded-fork
+repeat also had worker-startup and test timeouts. No test deadline was relaxed.
+The final full run, `npm test -- --pool=threads --maxWorkers=2 --reporter=dot`,
+passed **209 tests across 28 files**, with the same assertions. It includes
+extreme/subnormal numeric ranges and exact lower-inclusive histogram-boundary
+regressions. All **47 server tests** passed with mocked providers. TypeScript,
+the expanded subpath smoke (including analytics and worker audit preparation)
+and the restored root production build passed afterward. Scoped helpers stopped;
+the existing credential-configured host was preserved and served the root build.
+
+These are fresh Chrome/synthetic/mock checks, not a private-corpus rerun,
+live-provider acceptance, cross-browser/device guarantee, manual screen-reader
+evaluation or full v6.4/Pega scoring certification.
+
+## Fullscreen, definitions and evolution follow-up
+
+Native diagram fullscreen reuses the existing drawing and keeps complete scope,
+manual collapse, selection and camera state. Desktop Escape and the explicit
+exit button restore focus; a separate narrow layout keeps the map and
+scrollable node-details/text-outline panel available. Unsupported/denied
+fullscreen produces visible errors. Inline metric disclosures and a keyboard-
+operable glossary distinguish ensemble, selected-tree and drawing scopes.
+
+Evolution imports use separate summary-only workers, never transfer forests
+into the series, and terminate after completion/rejection/cancellation.
+Production Chrome checks exercised unordered multi-file imports, exact-byte
+duplicates, malformed files, missing metrics, actual elapsed-time chart spacing,
+non-interpolated gaps, UTC correction in an America/New_York browser timezone,
+duplicate-time blocking, predictor changes, removal/clear/reload, cancellation
+with retained successes, and the open occurrence worker/profile/AI remaining
+intact. Native desktop/mobile fullscreen and expanded controls were exercised;
+screenshots were inspected. Automated axe A/AA checks passed on fullscreen and
+desktop/mobile comparison surfaces. These are headless Chrome/emulated viewport
+checks, not manual screen-reader or physical-device certification.
+
+**Final local acceptance passed after the rendering follow-up.** The complete
+production Chrome run passed 34 checks, with two unconfigured private-corpus
+cases skipped. All seven fullscreen/evolution journeys, axe checks, lifecycle
+retention checks and unchanged timing gates passed together. The 132,990-node
+forest completed its import/drawing journey in 1,470 ms with no observed task
+at least 50 ms across import/editor/edit. The complete 8,191-node tree,
+4,096 leaves and 8,190 links remained mounted; its import/editor maximum was
+51 ms. The five-cycle lifecycle had no observed task at least 50 ms, maximum
+sampled live renderer heap 25,077,136 bytes, warmed closed growth 435,728 bytes,
+and zero remaining analysis workers after every close. These are bounded
+synthetic measurements on this host, not universal device or corpus guarantees.
+
+Profiling identified a synchronous workspace-plus-layout mount and growing
+layout/visibility work during progressive drawing. Large diagrams now mount
+in a separate task from workspace initialization. Outline visibility is
+contained per 32-entry ordered-list batch instead of per entry; every entry
+remains available, with continuous numbering and no node cutoff. The lifecycle
+benchmark now uses scoped editor controls and the same snapshot-free action
+tracing as the performance suite: full-DOM trace snapshots and whole-document
+selector scans were adding benchmark overhead. Functional UI tests retain
+normal snapshots. No timing threshold, readiness timeout, heap budget,
+required tree count or worker-retention assertion was relaxed.
+
+**Earlier attempts did not pass.** The first full Chrome run passed
+30 cases, skipped the two unconfigured private-corpus cases, and failed three
+existing large-model gates: a 110 ms task in the five-cycle lifecycle case,
+the unchanged five-second workspace readiness timeout, and a 551 ms maximum
+task with the complete 8,191-node tree. An isolated rerun without general DOM
+snapshot tracing passed the 132,990-node forest's 100 ms gate (maximum 93 ms;
+4,985 ms through complete drawing), but still hit lifecycle import readiness
+and a 231 ms high-cardinality task. A separate diagnostic CPU timeline recorded
+long JavaScript rendering callbacks, layout and garbage collection; profiling
+itself is additional overhead, not acceptance evidence. Shared-host timings
+varied substantially; these historical failures are not attributed to host
+load alone. A later pre-fix repeat passed the forest and high-cardinality
+checks but failed lifecycle at 124 ms; after bounding lifecycle instrumentation,
+the high-cardinality case still failed at 156 ms before the rendering changes.
+
+The final complete unit/component run passed 198 tests and TypeScript.
+Exact duplicates can explicitly be kept as separate
+observations, with no guessed date and a required actual UTC time for trends.
+Private exports and live LLM inference were not used; AI regression transports
+were mocked.
+
+The final expanded-glossary workspace journey and subpath hosting smoke passed;
+the latter also exercised fullscreen and snapshot comparison. TypeScript and
+the root production rebuild passed afterward. Functional hosting acceptance is
+separate from the measured responsiveness checks above.
+
+## Complete-tree display, 2026-10-15
+
+The owner chose complete selected-tree diagrams, including large trees, rather
+than automatic depth collapse or the former 127-node cutoff. Subtree focus and
+collapse are now explicit actions; Root restores the fully expanded tree.
+Deep trace/occurrence selection keeps the whole tree in scope. Fit uses both
+viewport dimensions and can zoom below 15% so the entire scope fits.
+
+Large drawings append small memoized batches without discarding nodes. Each
+batch has its own bounded SVG viewport within one continuous, scaled map,
+avoiding repeated layout/paint of one giant SVG. The diagram reports progress
+until every node is drawn. The text outline retains every entry, with browser
+offscreen-rendering optimization. CSS containment and content visibility keep
+profile navigation from restyling the entire inactive drawing. Larger trees
+still take longer and use more browser memory; this is not an unlimited-size
+or cross-device responsiveness guarantee.
+
+The initial all-at-once implementation failed the existing 100 ms gate.
+A later repeat found a 104 ms initial-mount task; large drawings now yield
+before their first batch, separately from workspace initialization.
+Profiling also identified trace snapshot traversal and whole-document test
+queries as benchmark overhead. Performance cases now retain action/network
+traces without DOM snapshots/screenshots, use scoped controls, and wait for
+complete drawing before collecting the full import interval. Other UI cases
+retain their normal trace configuration. No duration threshold or required
+tree count was relaxed.
+
+Fresh Chrome acceptance passed all 11 AI/accessibility/performance cases.
+The 33-node fixture now draws all 33 nodes and 17 leaves. The 132,990-node
+forest draws all 1,023 nodes of its selected tree; no >=50 ms task was recorded
+across the final import/editor/edit interval.
+The high-cardinality case draws all 8,191 nodes, 4,096 leaves and 8,190 links,
+with a maximum recorded 75 ms task through import, complete drawing and editor
+opening. These measurements use generated fixtures, not private models or
+real provider inference. All 26 targeted layout/diagram/workspace/explanation
+tests, TypeScript/root build and the subpath-hosting smoke also passed.
+Earlier collapsed-view results below are historical.
+
+## Whole-model commentary rerun, 2026-10-14
+
+The additional full-model evidence pass remains in the import worker, not on
+context selection/profile editing. Production Chrome and Edge each passed
+10 targeted AI, axe, privacy and unchanged performance cases. A longer exact-
+request preview revealed an actual keyboard-inaccessible scroll region in the
+first run; focusability and an accessible region label fixed it without rule
+exclusions. AI provider transports were mocked, never real inference.
+
+Both owner-supplied private exports also passed five local import/edit/close
+cycles each with AI credentials disabled and external evidence storage. Initial
+RBO/Web imports took996/470 ms; real changed-route edits85/77 ms; no >=50 ms main-
+thread task was recorded in their import/editor/edit intervals. RBO worker parse/
+analysis took285.2/113.4 ms and Web119.4/63.6 ms, including the new full-model
+aggregation. These are shared-host observations, not universal guarantees or
+secure-erasure measurements; the existing exact100 ms/5-second and bounded
+retention assertions remain unchanged. Earlier results below are preserved.
 
 ## Local evidence, 2026-10-06 to 2026-10-07
 
@@ -284,8 +462,51 @@ Actual Tab/Enter, repeated selected-node focus, 320/390/768/1440 px journeys,
 reduced motion and half-width/high-DPI reflow passed in both installed browsers.
 That last emulation is **not actual browser zoom**. Firefox/WebKit restoration
 failed due download timeouts, so those engines, physical devices and assistive
-technology remain manual/external gates. AI is local scaffolding only: the retired
-provider is hard-blocked and no live inference request was made.
+technology remain manual/external gates. At that historical checkpoint AI was
+local scaffolding only: the retired provider was hard-blocked and no live inference
+request was made. The subsequent owner-approved Anthropic integration is recorded below.
+
+### Copilot-default regression acceptance, 2026-10-14
+
+SDK provider selection does not move deterministic analysis into AI. Chrome
+full production25/25 and separate private2/2 (five cycles each), Edge targeted
+AI/axe/privacy/performance/journeys20/20, and Edge local-subpath1/1 passed.
+All four axe surfaces include the default-provider consent preview; the mocked
+real-HTTP journey checks keyboard approval, plaintext output, provider switching,
+separate profile consent, safe rate failures/cancel and no external browser egress.
+
+The unchanged100 ms blocking and5-second readiness gates passed. The public
+132,990-node synthetic import/edit elapsed times were Chrome1014/129 ms and
+Edge1005/138 ms, with no observed >=50 ms task in either. The4,095-predictor
+checks also observed no >=50 ms task. These are shared-host measurements, not
+universal hardware guarantees. Historical156 ms/isolated-timeout evidence is
+not overwritten. No live inference or private provider transfer occurred;
+SDK non-inference startup/auth-status/stop was separately verified without auth.
+Physical-device, actual screen-reader/zoom and independent-engine gates remain.
+
+### Subsequent Anthropic integration regression check, 2026-10-09
+
+The unchanged production Chrome performance gate passed after adding the optional
+loopback commentary flow. For the 132,990-node synthetic model, import was
+**1,043 ms** and the real changed-value edit **155 ms**, with no observed >=50 ms
+task across the recorded interval. The 4,095-predictor case observed a maximum
+**55 ms** task. Five synthetic import/edit/close cycles passed the same declared
+retention and 100 ms budgets; import durations were 1,019–1,593 ms.
+
+Both private exports then passed five Chrome cycles each with no configured
+Anthropic key and no provider transfer. RBO imports were 910–993 ms, edits
+72–75 ms; Web imports 297–979 ms, edits 64–85 ms. No >=50 ms long task was
+observed in either repeated record, and every close had zero workers. Private
+payloads, identifiers and detailed evidence stay outside the repository.
+These results do not erase historical failures or establish universal device,
+peak/RSS, secure-erasure or Pega-oracle parity.
+
+All four axe surfaces and actual keyboard/reflow/reduced-motion journeys passed
+in Chrome and Edge; the mocked Anthropic success/error/cancel browser journey
+also checks the enabled consent/output surface. Cloud commentary is now an
+explicit consented exception, never a source of deterministic calculation.
+No real provider request or real API key was used. See `AI.md` and the subsequent
+acceptance record in `RELEASE_READINESS.md`.
 
 - Automated axe WCAG A/AA scans cover start, exploration, and open profile editor in a real production browser.
 - Trace labels previously measured 3.56:1 at 9 px; contrast and type sizes were corrected and real-browser scans cover them.

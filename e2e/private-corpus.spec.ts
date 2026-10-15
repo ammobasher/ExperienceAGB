@@ -112,7 +112,9 @@ for (const [label, variable] of [['RBO', 'AGB_PRIVATE_RBO_EXPORT'], ['Web', 'AGB
     await expect(selectedNode).toBeFocused();
     await occurrenceButton.click();
     await expect(selectedNode).toBeFocused();
-    expect(await page.locator('.tree-node').count()).toBeLessThanOrEqual(127);
+    await page.waitForFunction(() => document.querySelector('.diagram-workspace')?.getAttribute('aria-busy') === 'false');
+    expect(await page.locator('.tree-node').count()).toBe(analysis.treeFacts[occurrence.treeIndex].nodeCount);
+    expect(await page.locator('.tree-node.is-leaf').count()).toBe(analysis.treeFacts[occurrence.treeIndex].leaves);
     await page.setViewportSize({ width: 390, height: 900 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.getByRole('button', { name: /Open another/ }).click();

@@ -3,10 +3,16 @@ import { analyseModel, OCCURRENCE_PAGE_SIZE } from '../domain/modelAnalysis';
 import type { PredictorOccurrence } from '../domain/predictorSearch';
 import type { TreeNode } from '../domain/agb';
 import type { WireNode, WorkerReply, WorkerRequest } from '../services/workerProtocol';
+import { summarizeEvolution } from '../domain/modelEvolution';
+import { hashAuditCategories, sha256 } from '../domain/modelAudit';
+import { buildAuditExport } from '../domain/auditExport';
+import type { ModelAnalysis } from '../domain/modelAnalysis';
+import type { ValidationIssue } from '../domain/agb';
 
 let occurrences = new Map<string, PredictorOccurrence[]>();
 let resumeTransfer: (() => void) | undefined;
 let inFlightChunks = 0;
+let exportSource: { analysis: ModelAnalysis; issues: ValidationIssue[] } | undefined;
 const MAX_IN_FLIGHT_CHUNKS = 4;
 function send(message: WorkerReply) { self.postMessage(message); }
 async function sendNodes(entries: WireNode[]) {
@@ -17,6 +23,16 @@ async function sendNodes(entries: WireNode[]) {
   send({ kind: 'nodes', entries });
 }
 self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
+  if (event.data.kind === 'audit-export') {
+    const { requestId, format } = event.data;
+    try {
+      if (!exportSource) throw new Error('The local audit is not ready. Reopen the model and retry.');
+      send({ kind: 'audit-export', requestId, file: buildAuditExport(exportSource.analysis, exportSource.issues, format) });
+    } catch (cause) {
+      send({ kind: 'audit-export-error', requestId, message: cause instanceof Error ? cause.message : 'The local audit export failed. Retry; no file was uploaded.' });
+    }
+    return;
+  }
   if (event.data.kind === 'next-chunk') {
     inFlightChunks = Math.max(0, inFlightChunks - 1);
     const resume = resumeTransfer;
@@ -32,13 +48,24 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   try {
     send({ kind: 'progress', message: 'Reading, parsing and validating locally…' });
     const start = performance.now();
-    const result = parseAGBText(await event.data.file.text(), event.data.file.size);
+    const evolution = event.data.kind === 'evolution-import';
+    const sourceBytes = await event.data.file.arrayBuffer();
+    const text = new TextDecoder().decode(sourceBytes);
+    const result = parseAGBText(text, event.data.file.size);
     const parseMs = performance.now() - start;
     if (!result.model) { send({ kind: 'invalid', result }); return; }
     send({ kind: 'progress', message: 'Indexing trees and predictors locally…' });
     const analysisStart = performance.now();
-    const analysis = analyseModel(result.model);
+    const analysis = analyseModel(result.model, event.data.file.size);
+    const digest = await sha256(sourceBytes);
+    analysis.summary.sourceDigest = digest;
+    if (analysis.summary.audit) await hashAuditCategories(analysis.summary.audit, analysis.categories);
+    if (evolution) {
+      send({ kind: 'evolution-summary', summary: { ...summarizeEvolution(result, analysis.summary), digest }, issues: result.issues });
+      return;
+    }
     analysis.summary.timings = { parseMs, analysisMs: performance.now() - analysisStart };
+    exportSource = { analysis: analysis.summary, issues: result.issues };
     occurrences = analysis.occurrences;
     const { trees, ...model } = result.model;
     send({ kind: 'metadata', model, diagnostics: { issues: result.issues, nodeCount: result.nodeCount, maxDepth: result.maxDepth }, analysis: analysis.summary });

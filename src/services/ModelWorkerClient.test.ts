@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ModelWorkerClient } from './ModelWorkerClient';
 import type { WorkerRequest } from './workerProtocol';
+import { summarizeEvolution } from '../domain/modelEvolution';
+import { validateAGBExport } from '../domain/importModel';
+import { analyseModel } from '../domain/modelAnalysis';
 
 class FakeWorker extends EventTarget {
   onmessage: ((event: MessageEvent) => void) | null = null;
@@ -12,6 +15,71 @@ class FakeWorker extends EventTarget {
 }
 
 describe('worker lifecycle', () => {
+  it('delivers local audit blobs, surfaces preparation failures without killing navigation, and rejects pending exports on close', async () => {
+    const worker = new FakeWorker(), client = new ModelWorkerClient(() => worker);
+    const loading = client.load(new Blob(['{}']));
+    worker.onmessage?.(new MessageEvent('message', { data: { kind: 'metadata', model: {}, diagnostics: { issues: [], nodeCount: 1, maxDepth: 0 }, analysis: {} } }));
+    worker.onmessage?.(new MessageEvent('message', { data: { kind: 'nodes', entries: [{ parent: null, treeIndex: 0, node: { score: 0, sampleCount: 0 } }] } }));
+    worker.onmessage?.(new MessageEvent('message', { data: { kind: 'complete' } }));
+    await loading;
+    const pending = client.getAuditExport('json'), file = new Blob(['{"manifest":{}}']);
+    const request = worker.messages.at(-1);
+    if (request?.kind !== 'audit-export') throw new Error('Missing export request.');
+    worker.onmessage?.(new MessageEvent('message', { data: { kind: 'audit-export', requestId: request.requestId, file } }));
+    expect(await pending).toBe(file);
+    const failed = client.getAuditExport('html'), failure = worker.messages.at(-1);
+    const rejection = expect(failed).rejects.toThrow('Visible export failure');
+    if (failure?.kind !== 'audit-export') throw new Error('Missing export request.');
+    worker.onmessage?.(new MessageEvent('message', { data: { kind: 'audit-export-error', requestId: failure.requestId, message: 'Visible export failure' } }));
+    await rejection;
+    expect(worker.terminated).toBe(false);
+    const abandoned = expect(client.getAuditExport('json')).rejects.toMatchObject({ name: 'AbortError' });
+    client.dispose(); await abandoned;
+    await expect(client.getAuditExport('json')).rejects.toThrow('unavailable');
+  });
+  it('imports summary-only evolution data and terminates its dedicated worker without transferring trees', async () => {
+    const worker = new FakeWorker(), active = new FakeWorker();
+    const workspaceClient = new ModelWorkerClient(() => active), historyClient = new ModelWorkerClient(() => worker);
+    const workspaceLoad = workspaceClient.load(new Blob(['{}']));
+    const progress = vi.fn();
+    const pending = historyClient.readEvolution(new Blob(['{}']), undefined, progress);
+    expect(worker.messages).toHaveLength(1);
+    expect(worker.messages[0].kind).toBe('evolution-import');
+    const result = validateAGBExport({ type: 'AdaptiveBoostScoringModel', modelVersion: '2', algorithm: 'GRADIENT_BOOST', model: { booster: { trees: [{ score: 0, sampleCount: 1 }] } } }, 100);
+    const summary = { ...summarizeEvolution(result, analyseModel(result.model!).summary), digest: 'synthetic-hash' };
+    worker.onmessage?.(new MessageEvent('message', { data: { kind: 'progress', message: 'Indexing locally' } }));
+    worker.onmessage?.(new MessageEvent('message', { data: { kind: 'evolution-summary', summary, issues: [] } }));
+    expect(await pending).toEqual({ summary, issues: [] });
+    expect(progress).toHaveBeenCalledWith('Indexing locally');
+    expect(worker.terminated).toBe(true);
+    expect(worker.onmessage).toBeNull();
+    expect(active.terminated).toBe(false);
+    const rejection = expect(workspaceLoad).rejects.toMatchObject({ name: 'AbortError' });
+    workspaceClient.dispose(); await rejection;
+  });
+
+  it('rejects summary import on abort, startup, message decoding, provider-free worker failure or unexpected tree transfer', async () => {
+    for (const scenario of ['abort', 'decode', 'failure', 'unexpected', 'post']) {
+      const worker = new FakeWorker(), abort = new AbortController();
+      if (scenario === 'post') worker.postMessage = () => { throw new Error('Blocked'); };
+      const client = new ModelWorkerClient(() => worker);
+      const pending = client.readEvolution(new Blob(['{}']), abort.signal);
+      const rejection = expect(pending).rejects.toMatchObject({ name: scenario === 'abort' ? 'AbortError' : 'Error' });
+      if (scenario === 'abort') abort.abort();
+      if (scenario === 'decode') worker.dispatchEvent(new MessageEvent('messageerror'));
+      if (scenario === 'failure') worker.onmessage?.(new MessageEvent('message', { data: { kind: 'failure', message: 'Local read failed' } }));
+      if (scenario === 'unexpected') worker.onmessage?.(new MessageEvent('message', { data: { kind: 'nodes', entries: [] } }));
+      await rejection;
+      expect(worker.terminated).toBe(true);
+    }
+    await expect(new ModelWorkerClient(() => { throw new Error('Unavailable'); }).readEvolution(new Blob())).rejects.toThrow(/could not start/i);
+    const worker = new FakeWorker(), client = new ModelWorkerClient(() => worker);
+    const pending = client.readEvolution(new Blob());
+    worker.onmessage?.(new MessageEvent('message', { data: { kind: 'invalid', result: { model: null, issues: [{ severity: 'error', path: '$', message: 'Bad JSON' }], nodeCount: 0, maxDepth: 0 } } }));
+    expect((await pending).summary).toBeUndefined();
+    expect(worker.terminated).toBe(true);
+  });
+
   it('acknowledges reconstructed chunks before requesting more and drops the import handler on completion', async () => {
     const worker = new FakeWorker();
     const client = new ModelWorkerClient(() => worker);

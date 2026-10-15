@@ -1,10 +1,121 @@
 # ExperienceAGB — Rebuild Implementation Plan
 
+## v6.4 structural analytics integration (2026-10-15)
+
+The owner authorized implementing the attachment-review recommendations.
+Selected vetted calculations now run in the existing TypeScript import worker,
+not the attached Python/Plotly HTML runtime. Model insights adds an availability-
+aware overview, predictor gain/frequency/Pareto views, literal namespaces separate
+from roles/provenance, linked tree-order diagnostics, numeric/membership/missing
+inventory, a depth/namespace heatmap, signed all-leaf density and nonjudgmental
+review candidates. Exact paginated tables and scoped links preserve the complete
+tree explorer and its fullscreen behaviour.
+
+Evolution retains summary gain shares/ranks, namespace composition, threshold
+histograms and observed-set digests. Chronology/membership gates remain;
+tree identity, pruning/retirement, drift and age are not inferred. Independent
+metrics survive optional missing AUC/leaf gains; missing internal gains gate
+dependent gain metrics. Duplicate JSON keys are rejected, missing checks have
+their own evidence count, and score-like names no longer override namespaces.
+
+Explicit sensitive local export prepares script-free HTML or a JSON evidence
+bundle in the worker, with exact numbers/figure data, metric definitions,
+operands/availability, source-byte SHA-256, versioned algorithms, CSV/SVG and
+limitations. No raw forest or AI narrative is embedded or uploaded.
+
+The single bottom AI panel uses a bounded v6.4 adaptation with consultant/
+technical presentation and local-only alias resolution. The archived v6.3 text
+is preserved, not sent. `agb-v6.4-local-evidence-v5` / `whole-model-v2` require
+an existing bridge restart and fresh approval. Raw exports, names, categories,
+thresholds, identities, times, profiles and comparison summaries remain excluded.
+The complete v6.4 audit, causal/calibration/health certification and independent
+Pega scoring parity remain explicit nonclaims, not hidden completed requirements.
+
+Final local acceptance passed 209 unit/component tests, all 47 server tests,
+40 production Chrome journeys (two unconfigured private-corpus cases skipped),
+the expanded subpath smoke, TypeScript and the restored root production build.
+The new 4,095-predictor insight/export interval peaked at 78 ms against the
+unchanged 100 ms main-thread target. Desktop/mobile screenshots and axe were
+checked; private models/live providers were not used. Earlier failed attempts
+and measurement limits are retained in `docs/PERFORMANCE_ACCESSIBILITY.md`.
+Changes remain uncommitted/unpushed; the existing keyed bridge was preserved.
+
+## Fullscreen, definitions and model evolution follow-up
+
+The owner requested fullscreen diagrams, explanations of technical terms and
+unambiguous ensemble/selected-tree/diagram scopes. Fullscreen must reuse the
+same complete drawing and preserve selection, camera and manual scope, retain
+node details/text outline, support keyboard exit and restore focus.
+
+The owner selected **local structure and training-metric trends first** for
+multiple time-separated exports of the same model, without shared-profile
+scoring comparison. A separate comparison view validates each export through
+the existing adapter/limits, retains summaries rather than multiple forests,
+and never uploads snapshots or changes the open model's AI request.
+Same-model membership requires user confirmation because the accepted schema
+has no reliable identity. Use validated UTC export times or explicit manual UTC
+overrides; do not guess from names/file times. Keep unavailable metrics missing,
+pause ambiguous duplicate-time chronology, report rejected/duplicate files,
+allow removal/clear and cancel unfinished work without discarding successes.
+Charts use actual elapsed spacing, bounded proportion axes, accessible exact
+data tables and descriptive earliest-to-latest/predictor-change insights.
+No structural change is a performance, drift, causal or scoring certification.
+Comparison summaries are memory-only and survive workspace view switches, not
+model/comparison closure or reload.
+
+Implemented and locally verified: 198 unit/component tests, TypeScript,
+34 production Chrome checks (two private-corpus cases skipped), subpath hosting
+and the restored root build. The complete-tree 100 ms gates passed after
+separating large-diagram mounting from workspace initialization and batching
+outline visibility without dropping entries. See `docs/PERFORMANCE_ACCESSIBILITY.md`
+for measurements and earlier failed attempts. No new publication is implied.
+
+## Complete-tree display follow-up
+
+The owner chose complete diagrams even for large trees, using scrolling and
+zoom rather than automatic depth collapse or a 127-node cutoff. Show every
+node and leaf of the selected tree by default. Only an explicit subtree-focus
+or manual-collapse action may reduce the scope; Root restores the complete
+tree. Deep trace/occurrence selection must not silently narrow the scope.
+Render large drawings incrementally without truncation, preserve local-only
+analysis and the existing responsiveness target, and let Fit cover the entire
+scope without an arbitrary minimum zoom.
+
+## Whole-model evidence explanation follow-up
+
+The owner originally requested an optional explanation using the original v6.3
+prompt and complete model export. After repeated generic provider errors with a
+user-reported 6 MB export, the owner selected local whole-model analysis with
+bounded computed evidence sent to the LLM instead of raw JSON. This supersedes
+the previous separately consented raw-transfer mode. Reuse the import worker's
+pass over every accepted tree/node; retain the original prompt verbatim as
+reference. Evidence sharing requires its own per-request approval,
+exact-payload review, fixed provider dispatch and independent server validation.
+Display the explanation with the model and retain it across tree selection,
+without persisting it across model closure. The owner's latest layout decision
+keeps only this whole-model explanation, at the bottom of the workspace after
+the explorer/trace; remove the duplicate selected-context panel. No agent file/code tools, automatic
+requests, retries, truncation or provider fallback. Bound evidence to 16 KiB and
+the complete request to 128 KiB. Explain only supplied numbers, with field
+citations; unsupported audit outputs remain PENDING EXECUTION. Do not claim
+the complete v6.3 execution gates, Python/HTML audit or scoring certification.
+
 **Status (2026-10-09):** Feasible local exploratory-preview hardening complete: 128 units, types/build, 27 Chrome browser checks including authentic repeated corpus, 20 Edge UX/accessibility/privacy checks, two host boundaries and hardened subpath smoke passed. The owner approved local-only exploratory release, bundled-sample-only publication and commit/push of these changes. Certified Pega parity remains outside this preview. Current acceptance and remaining limitations are in `docs/RELEASE_READINESS.md`.
 **Published baseline:** Commit `50efd345ca8e77f465c9edac2e64e7b7016a19b0` contains the initial implementation; [hosted CI passed](https://github.com/ammobasher/ExperienceAGB/actions/runs/37745532116). Historical 90-unit/15-browser acceptance does not supersede the subsequent local synthetic performance failure (156 ms versus the unchanged 100 ms target) and isolated import timeout. New changes require fresh acceptance and are not automatically published.
 **Current checkpoint:** Conservative observed-shape validation, local worker analysis, bounded explorer/editor navigation, deterministic explanations and complete/incomplete trace previews are implemented. All calculated propensities remain visibly **unverified previews**. Unknown scoring constructs remain rejected; no companion-library edge-case bug is adopted as a Pega contract. Product/build applicability, independent oracle checks and approval remain prerequisites to certification, not blockers to the accepted preview.
-**AI provider blocker:** Current public documentation reports GitHub Models fully retired July 30, 2026. Local contextual preview/consent and mock-only defensive transport are implemented; production makes no AI request. Working commentary requires a separately authorized supported provider. No broader token or automatic substitution is used to pretend this phase is complete.
-**Latest AI decision:** The owner requested GitHub Copilot as the future default. Official SDK integration uses an authenticated local CLI runtime, not an assumed static-browser API key endpoint. A loopback Node bridge changes the architecture and awaits authorization; live AI stays disabled for this release.
+**AI status:** The owner authorized a loopback-only backend on 2026-10-09, superseding deferral and the original browser-token design, then selected GitHub Copilot SDK/local CLI as default on 2026-10-14 with Anthropic explicitly selectable. Each request needs exact application-message consent, disclosed SDK/runtime additions and separate numeric-profile approval; deterministic analysis/scoring stays local.
+**Latest AI decision:** Copilot default `auto`, official SDK1.0.21/runtime1.0.97, explicit server-only `COPILOT_GITHUB_TOKEN`, isolated per-request runtime and deny-all tools/discovery. Strict isolation does not inherit ambient GH_TOKEN/chat/stored-login identities. Anthropic alternative uses `ANTHROPIC_API_KEY` and `claude-haiku-5-5`; no silent or retired-provider fallback. Implementation is uncommitted/unpushed; mocked tests do not establish live entitlement or data-sharing approval. See `docs/AI.md`.
+
+**Commentary evidence update (2026-10-14):** The owner's v6.3 audit prompt is adapted
+to bounded commentary. Every accepted tree/node is analyzed locally for complete
+model-wide count/monitoring/gain/structure/namespace evidence, included alongside
+the selected context. That redacted-context mode does not transfer raw models or
+names or claim Python/tool execution or a full HTML audit. The latest owner
+decision above uses this whole-model evidence for the model-level explanation
+too, with the original prompt included as reference rather than sending raw
+JSON; unavailable v6.3 metrics remain explicit.
+Provider prompts and the server's independent schema/version gate share this
+contract. Restart the credential-configured bridge and reopen the model after upgrade.
 **Product direction:** A focused, browser-based Pega AGB explorer
 **Primary constraint:** No VR or immersive experience is in scope
 
@@ -20,7 +131,7 @@ The rebuild should start from a simple product contract rather than porting the 
 - **Audience:** Mixed; plain-language explanations for business users and inspectable evidence for practitioners.
 - **Model input:** Pega AGB JSON exports only for the initial release.
 - **Profile input:** Generate an illustrative profile from split values, allow users to edit it, and expose missing or unsupported values explicitly. Do not imply the generated profile represents a real customer or population.
-- **AI:** On-demand explanations of the current model, tree, node, or trace. The user supplies a GitHub Models API token. AI output is commentary, never the source of model calculations.
+- **AI:** On-demand model/tree/node/trace commentary. Original GitHub Models is superseded by owner-approved Copilot SDK/default and explicit Anthropic alternative via a loopback backend with server-only credentials. Never a model calculation.
 - **Hosting and data:** Static browser application; model parsing and deterministic analysis stay client-side. No account, server-side model storage, telemetry, or shared API credential in the MVP.
 - **Deliverable:** This document is a plan only; no application code is changed as part of this request.
 
@@ -46,7 +157,7 @@ The rebuild should start from a simple product contract rather than porting the 
 - Search predictors and navigate to their split occurrences.
 - Generate an editable, clearly labeled illustrative profile; edit feature values and trace the profile across trees.
 - Show the branch taken, selected leaf, per-tree contribution, running raw ensemble score, and final propensity when the trace is complete and the scoring contract is verified.
-- Offer optional, contextual AI explanation from a user-provided GitHub Models API token, subject to explicit disclosure and consent.
+- Offer optional contextual Copilot/default or explicitly selected Anthropic commentary through the approved loopback backend, with exact application-message/runtime-addition and separate profile-value consent; no browser credentials.
 - Work at desktop, tablet, and mobile widths, with keyboard operation and reduced-motion support.
 
 ### Explicitly out of scope
@@ -86,11 +197,11 @@ The rebuild should start from a simple product contract rather than porting the 
 
 ### D. Request an AI explanation
 
-1. The user explicitly enables AI and enters their own GitHub Models API token for the current session.
+1. The user explicitly enables AI; a trusted local server operator configures `ANTHROPIC_API_KEY` outside the browser. Missing configuration never blocks local analysis.
 2. Before the request, show the destination/provider and a preview of the exact context to be sent. Exclude the raw model JSON by default. Profile values are sensitive; require explicit confirmation before including them.
-3. Send only the minimum computed context relevant to the selected overview, tree, node, or trace.
+3. The latest owner decision uses bounded whole-model evidence and the original prompt as reference in one bottom-of-workspace panel, not a second selected-context panel; do not include the profile or raw JSON.
 4. Present the response as AI commentary alongside, not in place of, deterministic facts. Keep the calculation and evidence visible if the request fails or the output is unavailable.
-5. Keep the token in memory only; never place it in local storage, URLs, logs, error reports, or persisted app state. Provide a clear action to forget it.
+5. Keep the key server-side only; never return it to the browser or place it in storage, URLs, logs, error reports or persisted app state. Forget clears commentary/consent; stopping the server/removing its environment key or Console revocation removes local credential access.
 
 ## 6. Explanation and calculation contract
 
@@ -217,7 +328,7 @@ Workers are not an automatic starting requirement. Measure import, validation, i
 
 **Deliverables**
 
-- Session-only token entry, clear-token control, provider disclosure, request preview, consent, timeout/cancel, and rate/error handling.
+- Owner-approved server-only environment key and loopback bridge, browser commentary/consent clearing, provider disclosure, exact request preview, per-request consent, timeout/cancel and safe rate/error handling.
 - Minimal schemas for model, tree, node, and trace explanations, based on deterministic computed facts.
 - Explicit UI distinction between verified facts and AI commentary; no AI-created calculation enters application state.
 - Do not send raw model JSON by default. Treat profile values as sensitive and require separate confirmation before sending any.
@@ -255,7 +366,7 @@ Workers are not an automatic starting requirement. Measure import, validation, i
 | Tree diagrams become unreadable for large/deep trees | One tree at a time, collapse controls, synchronized textual outline, measured layout, progressive detail. |
 | Synthetic profile is mistaken for a real or typical customer | Persistent synthetic labeling and explicit explanation; never infer population distributions. |
 | Gain or local contribution is described as causal or global impact | Approved glossary/templates; distinguish structural importance from this profile's additive trace. |
-| User token is exposed through a shared deployment or browser compromise | Never embed shared secrets; use user-supplied session token only, disclose risks, minimize permissions, avoid persistence/logging, review CSP/XSS surface. |
+| API key is exposed through a deployment or browser compromise | Never embed browser secrets; owner-approved loopback backend keeps the environment key server-side, enforces exact Host/Origin/CSRF, avoids persistence/logging and reviews CSP/XSS. Local processes and the OS must still be trusted. |
 | Profile values leave the browser through AI | AI disabled until explicit action; preview exact payload; omit profile values by default; separate consent. |
 | “Final propensity” is shown for partial or unsupported routes | Typed incomplete trace state; no final score unless every route and formula is supported and verified. |
 | Rebuild recreates old complexity under new component names | Enforce scope list and phase gates; require a demonstrated user job before adding features. |
@@ -278,7 +389,7 @@ These do not block drafting the plan, but must be resolved before implementation
 - Exact Pega export versions and any compatibility policy for future schema changes.
 - Pega-owned scoring oracle and tolerance for representative numeric, categorical, missing, and boundary cases.
 - Whether profile values may be sent to the selected AI provider; default plan is no, unless separately previewed and approved per request.
-- Current GitHub Models token requirements, minimum permissions, endpoint availability, usage limits, and organization policy. Do not assume a Copilot subscription credential is an API token.
+- Current selected provider credential/entitlement, model availability, usage/retention terms and organization policy. Copilot uses its official SDK/local CLI and explicit supported credential, not an assumed browser API or chat identity.
 - Supported browsers/devices and the reference machine for performance targets.
 - Whether model downloads, screenshots, or reports are needed after the initial release; default is none.
 - Branding, deployment URL, and ownership of the new repository's CI/release process.
@@ -303,7 +414,7 @@ The completion implementation does not reinterpret internal regression cases as 
 - Phase 2: bounded 2D explorer, labels, plain-language details, outline, navigation, search and selection reveal/focus implemented; target-user review remains open.
 - Phase 3: illustrative generation/editing, explicit feature states, additive preview, partial route evidence, global blockers, changed routes and overflow gating implemented; authoritative scoring gate remains blocked.
 - Phase 4: persistent production E2E, automated WCAG checks and exact <=100 ms main-thread blocking regressions for both large-node and high-cardinality synthetic corpora implemented. Measurements are not authentic-corpus or universal device certification.
-- Phase 5: historically deferred in the 2026-10-06 completion scope; owner authorized implementation on 2026-10-09 using the original GitHub Models choice, with explicit per-request consent. See current release record and AI documentation rather than treating the historical deferral as current scope.
+- Phase 5: owner-approved loopback commentary implemented; October14 Copilot SDK default supersedes Anthropic default while retaining its explicit alternative. Server-only credentials, isolated deny-tool runtime, exact minimized-message consent/disclosed runtime additions, separate numeric-profile approval and safe error/cancel lifecycle. Actual entitlement, live quality and organizational data-sharing approval remain manual; no automatic publication authorized.
 - Phase 6: baseline documentation and CI configuration were published in commit `50efd345`; hosted CI passed for that commit. New changes are not covered by that old run. Hosting policies, formal reviews and release approval remain owner/external actions.
 
 Independent judges were used at coherent import, performance/accessibility and explorer/trace gates. Their actionable findings were reproduced with failing tests and fixed before advancing. A final bounded production-worker/subpath judge verified exact reconstruction of 1,031 nodes in 512/512/7 chunks, 511 occurrences across 27 page requests, route fidelity, lifecycle and subpath sample/worker/home. Its native `messageerror` registration finding was reproduced by both EventTarget-based unit and real-browser failing tests, then fixed using add/removeEventListener; final full suites passed. See `docs/RELEASE_READINESS.md` for the acceptance record and remaining gates.

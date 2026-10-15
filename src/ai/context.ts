@@ -30,7 +30,7 @@ export function buildContext(source: ContextSource, scope: ContextScope, include
   const index = Math.max(0, Math.min(model.trees.length - 1, Math.trunc(treeIndex) || 0));
   const facts = analysis.treeFacts[index];
   const stage = trace.stages[index];
-  const base = { scope, scoringStatus: 'unverified-preview', names: 'omitted', profileValues: includeProfileValues && scope === 'trace' ? 'numeric-only; text redacted' : 'omitted' };
+  const base = { scope, scoringStatus: 'unverified-preview', names: 'omitted', modelEvidence: analysis.modelEvidence ?? null, profileValues: includeProfileValues && scope === 'trace' ? 'numeric-only; text redacted' : 'omitted' };
   if (scope === 'model') return { ...base, facts: { trees: model.trees.length, predictors: analysis.predictors.length, nodes: result.nodeCount, deepestPathLevels: result.maxDepth + 1 } };
   if (scope === 'tree') return { ...base, tree: index + 1, facts: { nodes: facts.nodeCount, leaves: facts.leaves, serializedLeafMinimum: finite(facts.minimum), serializedLeafMaximum: finite(facts.maximum) } };
   if (scope === 'node') {

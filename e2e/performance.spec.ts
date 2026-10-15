@@ -3,6 +3,9 @@ import { writeFile } from 'node:fs/promises';
 import { cpus } from 'node:os';
 import { observePerformance, readPerformance, settlePerformance } from './performanceHarness';
 
+// Trace DOM snapshots traverse the full SVG and distort large-tree timings.
+test.use({ trace: { mode: 'retain-on-failure', snapshots: false, screenshots: false } });
+
 let profiling: CDPSession | undefined;
 test.beforeEach(async ({ page }) => {
   if (process.env.AGB_PROFILE_TIMELINE !== '1') return;
@@ -57,6 +60,7 @@ test('large admitted synthetic import and actual edits avoid >100ms main-thread 
   const start = Date.now();
   await page.locator('input[type=file]').setInputFiles(file);
   await expect(page.getByRole('region', { name: 'Model workspace' })).toBeVisible();
+  await page.waitForFunction(() => document.querySelector('.diagram-workspace')?.getAttribute('aria-busy') === 'false');
   await settlePerformance(page);
   const importMs = Date.now() - start;
   const importEvidence = await readPerformance(page);
@@ -66,16 +70,16 @@ test('large admitted synthetic import and actual edits avoid >100ms main-thread 
   expect(Math.max(...chunks.map(message => message.entries ?? 0)), 'transfer chunk budget').toBeLessThanOrEqual(512);
   expect(await page.locator('.tree-row').count(), 'bounded ensemble navigation').toBeLessThanOrEqual(25);
   expect(await page.locator('.predictor-group button').count(), 'closed predictors do not mount hidden occurrence buttons').toBe(0);
-  await page.getByRole('button', { name: 'Trace a profile' }).click();
-  await page.getByText(/Edit illustrative profile/).click();
-  const value = page.getByRole('textbox', { name: 'Illustrative Feature1', exact: true });
+  await page.locator('.workspace-actions').getByRole('button', { name: 'Trace a profile' }).click();
+  await page.locator('.profile-editor summary').click();
+  const value = page.locator('.profile-fields').getByRole('textbox', { name: 'Illustrative Feature1', exact: true });
   await settlePerformance(page);
   const editAt = await page.evaluate(() => performance.now());
   expect(await value.inputValue(), 'edit must change the supplied value').not.toBe('0');
   const editStart = Date.now();
   await value.fill('0');
   await expect(page.locator('.stage-preview-result')).toContainText('Left');
-  await expect(page.getByRole('button', { name: 'Inspect changed Tree 1', exact: true })).toBeVisible();
+  await expect(page.locator('.profile-trace').getByRole('button', { name: 'Inspect changed Tree 1', exact: true })).toBeVisible();
   await settlePerformance(page);
   const editMs = Date.now() - editStart;
   const allEvidence = await readPerformance(page);
@@ -96,7 +100,7 @@ test('large admitted synthetic import and actual edits avoid >100ms main-thread 
   expect(Math.max(0, ...editTasks), 'changed profile main-thread blocking').toBeLessThanOrEqual(100);
   expect(Math.max(0, ...allEvidence.tasks.filter(task => task.startTime + task.duration >= importAt).map(task => task.duration)),
     'entire import, editor opening and edit interval').toBeLessThanOrEqual(100);
-  expect(await page.locator('.tree-node').count(), 'bounded SVG rendering').toBeLessThanOrEqual(127);
+  expect(await page.locator('.tree-node').count(), 'complete selected-tree rendering').toBe(1023);
 });
 
 test('high-cardinality predictors and profile editors stay bounded and responsive', async ({ page }, testInfo) => {
@@ -110,13 +114,22 @@ test('high-cardinality predictors and profile editors stay bounded and responsiv
   const importAt = await page.evaluate(() => performance.now());
   await page.locator('input[type=file]').setInputFiles(file);
   await expect(page.getByRole('region', { name: 'Model workspace' })).toBeVisible();
-  await page.getByRole('button', { name: 'Trace a profile' }).click();
-  await page.getByText(/Edit illustrative profile/).click();
+  await page.waitForFunction(() => document.querySelector('.diagram-workspace')?.getAttribute('aria-busy') === 'false');
+  expect(await page.evaluate(() => ({
+    nodes: document.querySelectorAll('.tree-node').length,
+    leaves: document.querySelectorAll('.tree-node.is-leaf').length,
+    links: document.querySelectorAll('.tree-links path').length,
+  }))).toEqual({ nodes: 8191, leaves: 4096, links: 8190 });
+  const drawingCompleteAt = await page.evaluate(() => performance.now());
+  await page.locator('.workspace-actions').getByRole('button', { name: 'Trace a profile' }).click();
+  const traceOpenedAt = await page.evaluate(() => performance.now());
+  await page.locator('.profile-editor summary').click();
+  const editorOpenedAt = await page.evaluate(() => performance.now());
   await settlePerformance(page);
   const evidence = await readPerformance(page);
   const tasks = evidence.tasks.filter(task => task.startTime + task.duration >= importAt).map(task => task.duration);
   const report = testInfo.outputPath('high-cardinality-evidence.json');
-  await writeFile(report, JSON.stringify({ predictors: 4095, nodes: 8191, tasks, evidence }, null, 2));
+  await writeFile(report, JSON.stringify({ predictors: 4095, nodes: 8191, drawingCompleteAt, traceOpenedAt, editorOpenedAt, tasks, evidence }, null, 2));
   expect(await page.locator('.predictor-group').count()).toBeLessThanOrEqual(20);
   expect(await page.locator('.profile-field').count()).toBeLessThanOrEqual(25);
   expect(await page.locator('.predictor-group button').count(), 'closed high-cardinality predictors do not mount hidden buttons').toBe(0);

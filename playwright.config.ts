@@ -20,7 +20,8 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: `npm run build && npm run preview -- --host 127.0.0.1 --port ${port} --strictPort`,
+    command: 'npm run build && npm run start:local',
+    env: { AGB_AI_PORT: String(port), ANTHROPIC_API_KEY: '', COPILOT_GITHUB_TOKEN: '' },
     url: `http://127.0.0.1:${port}`,
     reuseExistingServer: false,
     timeout: 120_000,
