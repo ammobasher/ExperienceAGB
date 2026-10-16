@@ -8,6 +8,106 @@ The plan's provisional target is **no application analysis task blocking the mai
 
 The browser Long Tasks API records tasks of at least 50 ms. An empty recorded list means no task reached that reporting threshold during the measured interval; it does not mean processing took zero time. Worker processing can take longer while the main thread remains available and import remains cancelable. End-to-end durations include browser automation overhead.
 
+## Optional propensity-mapping acceptance, 2026-10-15
+
+The optional local companion panel was checked against synthetic mappings, not
+a native Pega Classifier export or platform oracle. Its explicit-domain/method
+contract, exact file binding, boundary selection, unavailable states and
+confirmation lifecycle have unit/component coverage. Desktop and mobile
+production journeys cover actual template downloads, keyboard confirmation,
+profile changes, incomplete routes, out-of-range scores, mismatched imports,
+view preservation, clearing/reload, axe A/AA, page reflow and absence of
+browser storage or unapproved writes. Both screenshots were inspected.
+
+| Fresh check | Result |
+|---|---|
+| `npm run typecheck` and root `npm run build` | Passed |
+| `npm test -- --pool=threads --maxWorkers=2 --reporter=dot` | 260 passed across 31 files |
+| `npm run test:server` | 47 passed, mocked providers |
+| Complete production Chrome run, `E2E_PORT=5194` | 45 passed; two unconfigured private-corpus cases skipped |
+| Subpath production hosting smoke | One passed; root assets subsequently restored |
+
+The 1,000-interval companion (76,902 bytes) mounted only 20 exact table rows,
+revealed the matched page and preserved the unchanged 100 ms gate across file
+read, parsing, confirmation, chart rendering and paging. No task reached the
+50 ms Long Tasks API threshold. In the same final complete run, the
+132,990-node forest imported/drew in 2,329 ms and edited in 154 ms, with no
+reported long task; high-cardinality exploration/editor peaked at 75 ms and
+insights/audit export at 79 ms. Five lifecycle cycles had no reported long task,
+a maximum sampled live renderer heap of 25,596,348 bytes and zero remaining
+workers after every close.
+
+The first complete run recorded a 161 ms task during the large-tree import
+interval in the existing insights/audit benchmark: 44 passed, one failed and
+two skipped. The isolated recheck peaked at 87 ms; the subsequent complete run
+passed at 79 ms without application changes or relaxed limits. The initial
+failure remains in external evidence; its cause was not established, and later
+passes are not a universal shared-host performance guarantee.
+
+Logs, performance JSON, screenshots and axe evidence remain outside the
+checkout. Scoped 5182/5194 verification hosts stopped; the existing configured
+5183 host was preserved and verified serving the new root assets. No native
+Pega mapping, live inference, private corpus, physical device, independent
+browser engine or manual screen-reader acceptance is claimed. See
+[the companion contract](PROPENSITY_MAPPING.md) for the required source evidence
+and platform-parity limitations.
+
+## Visual readability acceptance, 2026-10-15
+
+The published v6.4 baseline is `476bbef`; its hosted CI passed. A subsequent
+local visual refinement was reviewed using the bundled sample and generated
+snapshots, not private exports or live inference. The light theme now has
+descriptive, color-accented mode cards, a selected-task guide, readable metric
+cards and body copy, plain-language score explanations and a labeled diagram
+legend. Colors distinguish tasks/node types, not quality or causal influence.
+Long decimal displays are shortened and shares are percentages; original
+numbers remain in native disclosures, exact tables and unchanged audit exports.
+The diagram-label regression cases cover predictor names containing `in`/`is`.
+
+Fresh commands and results:
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | Passed |
+| `npm test -- --pool=threads --maxWorkers=2 --reporter=dot` | 216 tests passed across 29 files |
+| `npm run test:server` | 47 passed, mocked providers |
+| `npx playwright test --reporter=line` with Chrome and `E2E_PORT=5194` | 42 passed; two unconfigured private-corpus cases skipped |
+| `npx playwright test --config=e2e\hosting.config.ts --reporter=line` | One subpath smoke passed |
+| Final `npm run build` | Passed; root assets restored |
+
+The two new production visual journeys inspect start/explore/trace/overview/
+predictors/history/evolution at 1440 × 1000 and 390 × 844, record screenshots
+and axe WCAG A/AA findings, assert no page-level horizontal overflow, verify
+the four-/two-column mode layout, activate exact-number disclosures with
+Enter, check percentages and confirm zero non-GET requests/page errors. Existing
+320/390/768/1440 keyboard journeys, fullscreen, response/privacy/error paths and
+unchanged performance/lifecycle gates also passed. Desktop/mobile screenshots
+were inspected; the synchronized text outline was additionally scrolled into
+view and checked in the live browser canvas.
+
+| Workload in the complete run | Observation |
+|---|---|
+| 132,990-node forest, complete selected tree and actual edit | Import/drawing 3,613 ms; edit 172 ms; no task reached the 50 ms Long Tasks API reporting threshold |
+| 8,191-node tree / 4,095 predictors with editor | No task reached 50 ms |
+| Same node/predictor counts with insights, tables and worker JSON audit | Maximum observed main-thread task 72 ms |
+| Five large import/edit/close cycles | Maximum task 63 ms; maximum sampled live renderer heap 24,251,024 bytes; warmed closed growth 425,552 bytes; zero remaining workers after every close |
+
+No 100 ms limit, readiness assertion, heap budget, required node/link count or
+test deadline was relaxed. Earlier targeted attempts found invalid Testing
+Library role-query options, an intentionally rewritten copy assertion and
+jsdom's absent native Enter-to-toggle behavior for details. Query/copy assertions
+were corrected; unit coverage uses native click, while production browser
+coverage verifies Enter. Both targeted browser journeys and the subsequent
+complete run passed. The first screenshots also exposed a legacy flex rule
+overriding the intended mode-card grid; a scoped selector and computed-layout
+assertion now protect the responsive grid.
+
+Evidence and logs are in the session artifacts outside the checkout. Scoped
+5182/5194 helpers stopped; the user's existing credential-configured 5183 host
+was preserved and serves the new root build. These checks do not establish
+physical-device, cross-browser or manual screen-reader acceptance, successful
+live-provider inference, independent Pega parity or full v6.4 certification.
+
 ## v6.4 local analytics acceptance, 2026-10-15
 
 The final complete production Chrome run passed **40 checks**, with the two

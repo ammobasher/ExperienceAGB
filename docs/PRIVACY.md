@@ -1,6 +1,6 @@
 # Privacy and local data lifecycle
 
-- This is a local-first browser application with an optional loopback commentary bridge. GitHub Copilot SDK/local CLI is the default; Anthropic is an explicitly selected alternative, never a fallback. Local files are read and parsed by a local Web Worker; deterministic analysis stays in that browser.
+- This is a local-first browser application with an optional loopback commentary bridge. GitHub Copilot SDK/local CLI is the default; Anthropic is an explicitly selected alternative, never a fallback. Model exports are read and parsed by a local Web Worker; the optional 256 KiB-bounded propensity companion is parsed locally in the browser. Deterministic analysis stays in that browser.
 - The approved release is **local-only hosting** on loopback. The owner authorized publishing only the bundled demonstration sample, not private exports, profiles, identities or test evidence. Repository publication is not permission to deploy a public model-upload service.
 - Model/profile data stays in page/worker memory until explicitly shared. There is no localStorage/sessionStorage/IndexedDB persistence, recents list or app account. Approved minimized context or computed whole-model evidence passes through the loopback server to the selected provider. Raw model JSON is no longer an accepted provider input. The app does not log payloads. The SDK can create isolated ephemeral session state outside the project; sessions/runtime are closed and their directory removed per request. SDK shared stores/content telemetry are disabled. Crash remnants, OS traces/backups and provider retention are not guaranteed erased.
 - **Model evolution stays local.** Multiple user-selected files are validated sequentially in dedicated temporary workers, separate from the open model's occurrence worker. Comparison summaries retain counts, exact predictor names, available training/evaluation metrics, tags, filenames, timestamps/manual date provenance and local SHA-256 hashes for exact-byte duplicate detection. These can be sensitive; they are not added to AI evidence or uploaded. Additional forests are not transferred to the comparison UI, and each summary worker terminates after success, rejection, failure or cancellation. Unfinished/remaining files are not added on cancellation; completed summaries remain until removed/cleared. Switching workspace views preserves summaries; closing the model/standalone comparison, refresh or navigation clears them. Files are never modified. This is memory lifecycle management, not secure erasure or a guarantee of unlimited series size.
@@ -16,6 +16,26 @@
 - Standard browser extensions, devtools, screenshots, host access logs, and third-party hosting infrastructure can have their own data policies. Use a trusted browser/device and approved hosting.
 
 Runtime tests check that opening/tracing a model does not create persisted app state. A scoped loopback-only review observed no model upload. These checks are not a full security/privacy certification; a formal review remains a release gate.
+
+## Optional propensity companion
+
+The [score-to-propensity companion](PROPENSITY_MAPPING.md) stays in page memory.
+It can contain sensitive model/action identifiers, channel/direction, source
+references, platform versions, timestamps, exact model hashes, score intervals,
+response counts and mapped probabilities. None is added to AI requests,
+evolution summaries, structural audit downloads or browser storage. Source
+references are text, not automatically fetched URLs.
+
+Import requires exact model-file hash/tag/update-time matching and a separate
+context/domain/method confirmation before applying the mapping. These checks
+are not source authentication or platform certification. Invalid replacement
+imports retain the previous mapping but remove confirmation; cancellation and
+model changes invalidate late reads. Closing/replacing the model, reloading
+or clearing the mapping releases its app state; view changes preserve it.
+Template preparation requires explicit approval of the included model
+identifiers and creates a revocable in-memory download link. Saving the
+template persists a copy outside the app; clearing cannot erase saved copies,
+browser downloads/history or OS traces.
 
 ## Local structural analytics and explicit downloads
 

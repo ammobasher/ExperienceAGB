@@ -8,6 +8,7 @@
 | Internal score | An exported field shown under technical provenance. It is not summed when tracing a profile. |
 | Raw score | Additive total of selected leaf scores. Running total includes only complete preceding stages and finite arithmetic. |
 | Unverified propensity preview | Sigmoid of a complete finite raw total. Aggregation and export learning-rate scaling are documented by Pega; exact exported-node/input/routing parity remains unverified. |
+| Classifier companion / mapped propensity | Optional app-defined companion of ordered score intervals, supplied probabilities or explicitly selected smoothed response counts, and declared context/provenance. Bound to exact model bytes and applied only after confirmation. Not a native Pega export adapter, fitted PAVA/Platt model, platform certification, exploration adjustment or business priority. See [format and limitations](PROPENSITY_MAPPING.md). |
 | Export learning rate | Pega documents that learning-rate scaling is already applied to tree scores during serialization. Applying a second multiplier would double-scale those documented exported contributions. |
 | `sampleCount` | Raw exported count. Its exact Pega training semantics require authoritative documentation; it does not establish population frequency. |
 | `gain` | Raw training-time split statistic with exact definition still unverified. It is not a profile's propensity change or causal impact. |

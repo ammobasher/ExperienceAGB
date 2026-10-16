@@ -15,6 +15,14 @@ Do not interpret acceptance as production compatibility or approval. No switch u
 
 The supplied production payloads remain private attachments, not repository fixtures or publicly hosted samples. Their use demonstrated the observed structure; authoritative field semantics and source-attributed scoring fixtures remain required to verify scoring.
 
+The optional [score-to-propensity companion](PROPENSITY_MAPPING.md) is imported
+separately under **Trace a profile**, not through this model adapter. It does
+not add native Classifier/datamart support or relax unknown-field rejection in
+AGB exports. The companion requires exact model-byte hash/tag/update-time
+binding, an explicit input domain and method, supplied monotonic intervals and
+separate context confirmation. It cannot establish platform parity or recover
+calibration from tree gains, counters or aggregate success rate.
+
 On 2026-10-09 the owner authorized exploratory release with unverified scoring,
 local-only hosting and publication of the **existing bundled sample only**.
 That decision does not authorize either production payload, actual export

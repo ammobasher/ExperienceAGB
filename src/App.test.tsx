@@ -56,6 +56,24 @@ afterEach(() => {
 });
 
 describe('model workspace integration', () => {
+  it('gives every workspace mode a plain-language purpose and a matching selected state', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: async () => JSON.stringify(model) }));
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Try the bundled sample/ }));
+    await screen.findByRole('heading', { name: 'Tree 1' });
+    for (const [label, heading] of [
+      ['Model insights', 'See the whole model at a glance'],
+      ['Model evolution', 'Understand what changed between snapshots'],
+      ['Trace a profile', 'See how example inputs travel through the model'],
+      ['Explore trees', 'Follow a tree, one question at a time'],
+    ]) {
+      const button = screen.getByRole('button', { name: label });
+      fireEvent.click(button);
+      expect(button).toHaveAttribute('aria-pressed', 'true');
+      expect(button).toHaveAccessibleDescription();
+      expect(screen.getByRole('heading', { name: heading })).toBeVisible();
+    }
+  });
   it('explains ensemble, selected-tree and drawing scopes and preserves the model while opening evolution', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: async () => JSON.stringify(model) }));
     render(<App />);
@@ -238,7 +256,7 @@ describe('model workspace integration', () => {
     await user.click(screen.getByRole('button', { name: /Try the bundled sample/ }));
     expect(await screen.findByText(`Export tag: ${modelVersion}`)).toBeInTheDocument();
     expect(screen.getByText(/Observed UUID-v4-tagged export structure/)).toBeInTheDocument();
-    expect(screen.getByText(/Pega oracle and live-CDH scoring parity are not established/)).toBeInTheDocument();
+    expect(screen.getByText(/Scoring is not verified against Pega/)).toBeVisible();
     expect(screen.queryByText(/SAMPLE-V2 STRUCTURE VALIDATED/)).not.toBeInTheDocument();
   });
 });

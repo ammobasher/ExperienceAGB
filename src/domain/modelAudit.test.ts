@@ -6,7 +6,7 @@ import { analyseModel } from './modelAnalysis';
 import { parseAGBText, validateAGBExport } from './importModel';
 import { parseSplit } from './split';
 import { auditMetrics } from './auditMetrics';
-import { formatAuditNumber, hashAuditCategories, interpolateRange, rangeFraction } from './modelAudit';
+import { formatAuditAxisNumber, formatAuditNumber, formatAuditPercent, hashAuditCategories, interpolateRange, rangeFraction } from './modelAudit';
 import { buildAuditExport } from './auditExport';
 import { compareSnapshots, summarizeEvolution } from './modelEvolution';
 
@@ -20,6 +20,16 @@ function example(): AGBModel {
 }
 afterEach(() => vi.unstubAllGlobals());
 describe('v6.4 local structural audit', () => {
+  it('formats readable percentages without hiding tiny shares or rounding integer counts', () => {
+    expect(formatAuditPercent(.0842)).toBe(`${(8.42).toLocaleString(undefined, { maximumFractionDigits: 2 })}%`);
+    expect(formatAuditPercent(1 / 3)).toBe(`${(100 / 3).toLocaleString(undefined, { maximumFractionDigits: 2 })}%`);
+    expect(formatAuditPercent(null)).toBe('Not available');
+    expect(formatAuditPercent(0)).toBe('0%');
+    expect(formatAuditPercent(1e-9)).not.toBe('0%');
+    expect(formatAuditPercent(-1e-9)).not.toBe('0%');
+    expect(formatAuditNumber(1000000001)).toBe((1000000001).toLocaleString());
+    expect(formatAuditAxisNumber(1000000).length).toBeLessThan(formatAuditNumber(1000000).length);
+  });
   it('rejects duplicate escaped and nested JSON keys without confusing strings or separate objects', () => {
     for (const text of ['{"auc":0.1,"auc":0.9}', '{"nested":{"score":0,"scor\\u0065":1}}', '{"__proto__":1,"__proto__":2}']) {
       expect(parseAGBText(text, text.length).issues[0].message).toMatch(/Duplicate object keys/);

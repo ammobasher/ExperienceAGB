@@ -21,6 +21,15 @@ const tree: TreeNode = {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('TreeDiagram', () => {
+  it.each([
+    ['IH.Web.Inbound.ClickCount < 3', '< 3'],
+    ['Customer.MissingScore is Missing', 'is missing'],
+    ['Customer.Origin in [Web, Store]', 'in a set of 2 values'],
+  ])('uses the parsed operator for the visual label of %s', (split, label) => {
+    const node: TreeNode = { score: 0, sampleCount: 2, split, left: { score: -.1, sampleCount: 1 }, right: { score: .1, sampleCount: 1 } };
+    const { container } = render(<TreeDiagram tree={node} treeNumber={1} nodeCount={3} leafCount={2} />);
+    expect(container.querySelector('[data-node-id="root"] .tree-node-second-line')).toHaveTextContent(label);
+  });
   it('selects nodes and collapses or expands their descendants', async () => {
     const user = userEvent.setup();
     render(<TreeDiagram tree={tree} treeNumber={4} nodeCount={5} leafCount={3} />);

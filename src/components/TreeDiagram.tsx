@@ -4,6 +4,7 @@ import type { TreeNode } from '../domain/agb';
 import { layoutTree, TREE_NODE_HEIGHT, TREE_NODE_WIDTH } from '../domain/treeLayout';
 import type { PositionedTreeLink, PositionedTreeNode } from '../domain/treeLayout';
 import { explainNode } from '../domain/explanations';
+import { parseSplit } from '../domain/split';
 import { Term } from './TechnicalTerms';
 
 interface Props { tree: TreeNode; treeNumber: number; nodeCount: number; leafCount: number; tracePath?: string[]; focusedNodeId?: string; focusRequest?: number }
@@ -195,7 +196,9 @@ function CompleteTreeDiagram({ tree, treeNumber, nodeCount, leafCount, tracePath
       {fullscreen && <p className="diagram-guidance">Fullscreen shows Tree {treeNumber}. Press Escape or choose Exit diagram fullscreen to return. All zoom, node and subtree controls remain available.</p>}
       {fullscreenError && <p className="error-message" role="alert">{fullscreenError}</p>}
       {renderedNodes < layout.nodes.length && <p className="diagram-guidance" role="progressbar" aria-label="Complete tree drawing" aria-valuemin={0} aria-valuemax={layout.nodes.length} aria-valuenow={renderedNodes}>Drawing the complete tree in scope: {renderedNodes} of {layout.nodes.length} nodes. No automatic collapse or node-count cutoff.</p>}
-      <details className="diagram-help" open={!fullscreen}><summary>Diagram counts and controls</summary><p className="diagram-guidance">True goes left; false goes right. {hiddenNodes > 0 ? `Hidden from this view: ${hiddenNodes} nodes and ${leafCount - layout.nodes.filter(node => !node.hasChildren).length} leaves${rootId !== 'root' ? ', in manually collapsed branches or outside the focused subtree' : ', in manually collapsed branches'}.` : renderedNodes < layout.nodes.length ? 'All nodes in scope are included; drawing is still in progress.' : 'All nodes and leaves are shown.'} The complete tree in scope is expanded by default; scroll or zoom to explore it. Collapse branches only when you choose. Select a split marked "+ more", then choose "Expand descendants" below the diagram to restore its full subtree. "Focus this subtree" narrows the scope; "Root" restores the complete tree. "Fit tree" changes zoom only. The text outline matches the nodes shown.</p></details>
+      <p className="diagram-guidance">True goes left; false goes right. {hiddenNodes > 0 ? `Hidden from this view: ${hiddenNodes} nodes and ${leafCount - layout.nodes.filter(node => !node.hasChildren).length} leaves${rootId !== 'root' ? ', in manually collapsed branches or outside the focused subtree' : ', in manually collapsed branches'}.` : renderedNodes < layout.nodes.length ? 'All nodes in scope are included; drawing is still in progress.' : 'All nodes and leaves are shown.'}</p>
+      <div className="diagram-legend" aria-label="Diagram color key"><span><i className="legend-question" aria-hidden="true" />Question (split)</span><span><i className="legend-leaf" aria-hidden="true" />Score contribution (leaf)</span><span><i className="legend-route" aria-hidden="true" />Illustrative route</span></div>
+      <details className="diagram-help"><summary>Diagram counts and controls</summary><p className="diagram-guidance">The complete tree in scope is expanded by default; scroll or zoom to explore it. Collapse branches only when you choose. Select a split marked "+ more", then choose "Expand descendants" below the diagram to restore its full subtree. "Focus this subtree" narrows the scope; "Root" restores the complete tree. "Fit tree" changes zoom only. The text outline matches the nodes shown. Colors identify node types and the example route, not model quality.</p></details>
       </div>
       <div ref={viewportRef} className="diagram-canvas" aria-label={`Tree ${treeNumber} diagram viewport`}>
         <div ref={drawingRef} className="tree-svg" role="group" aria-label={`Tree ${treeNumber}, top-down diagram. Select a node to inspect it.`}
@@ -208,7 +211,7 @@ function CompleteTreeDiagram({ tree, treeNumber, nodeCount, leafCount, tracePath
       <div className="diagram-details-panel">
       <section className="node-details" aria-label="Selected node details" aria-live="polite">
         <div className="node-details-heading"><span className={`node-kind ${selected.hasChildren ? 'node-kind-split' : 'node-kind-leaf'}`}>{selected.hasChildren ? 'SPLIT NODE' : 'LEAF NODE'}</span><span className="node-path">{selected.id === 'root' ? 'Root' : selected.id.slice(5).replaceAll('.', ' / ')}</span></div>
-        <p className="node-explanation"><b>{explanation.question}</b><br />{explanation.description}</p>
+        <p className="node-explanation"><span className="plain-language-label">IN PLAIN LANGUAGE</span><strong>{explanation.question}</strong><span>{explanation.description}</span></p>
         <details className="technical-details"><summary>Technical fields and provenance</summary><div className="node-details-main">
           <div className="node-condition"><span>{selected.node.split ? 'Condition' : 'Structure'}</span><b>{selected.node.split ?? 'Terminal node; no split condition'}</b></div>
           <div className="node-count-detail"><Term term="sampleCount" /><b>{selected.node.sampleCount.toLocaleString()}</b></div>
@@ -244,7 +247,7 @@ const TreeDrawingBatch = memo(function TreeDrawingBatch({ batch, selectedId, pre
     })}</g>
     {batch.nodes.map(item => {
       const isLeaf = !item.hasChildren;
-      const lines = item.node.split ? splitLines(item.node.split) : ['Leaf contribution', item.id === 'root' ? 'Root' : item.id.slice(5).replaceAll('.', ' / ')];
+      const lines = item.node.split ? splitLines(item.node) : ['Leaf contribution', item.id === 'root' ? 'Root' : item.id.slice(5).replaceAll('.', ' / ')];
       return <g key={item.id} data-node-id={item.id}
         className={`tree-node${item.id === selectedId ? ' is-selected' : ''}${isLeaf ? ' is-leaf' : ''}${previewPath.has(item.id) ? ' is-preview-path' : ''}`}
         role="button" tabIndex={0} aria-pressed={item.id === selectedId}
@@ -271,9 +274,13 @@ const TreeOutlineBatch = memo(function TreeOutlineBatch({ batch, start, treeNumb
     </button>
   </li>)}</ol>;
 });
-function splitLines(split: string): [string, string] {
-  const match = split.trim().match(/^(.+?)\s*(<|in|is)\s*(.+)$/i);
-  if (!match) return [split.slice(0, 24), 'Inspect condition below'];
-  return [match[1].length > 24 ? `${match[1].slice(-21)}…` : match[1], `${match[2]} ${match[3]}`.slice(0, 28)];
+function splitLines(node: TreeNode): [string, string] {
+  const condition = node.condition ?? parseSplit(node.split ?? '');
+  const feature = condition.feature;
+  const label = feature.length > 26 ? `…${feature.slice(-25)}` : feature;
+  if (condition.operator === 'lt') return [label, `< ${condition.threshold}`.slice(0, 28)];
+  if (condition.operator === 'missing') return [label, 'is missing'];
+  if (condition.operator === 'in') return [label, `in a set of ${condition.categories?.length ?? 0} values`];
+  return [(node.split ?? '').slice(0, 26), 'Inspect condition below'];
 }
 function formatScore(value: number) { return `${value >= 0 ? '+' : ''}${value.toFixed(4)}`; }

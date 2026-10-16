@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ModelAnalysis } from '../domain/modelAnalysis';
 import { auditMetrics } from '../domain/auditMetrics';
-import { formatAuditNumber as number, interpolateRange, rangeFraction } from '../domain/modelAudit';
+import { formatAuditNumber as number, formatAuditPercent as percent, formatAuditAxisNumber as axisNumber, interpolateRange, rangeFraction } from '../domain/modelAudit';
 import type { AuditPredictor, AuditTree, ModelAudit as Audit } from '../domain/modelAudit';
 import type { ModelEvidence } from '../domain/modelEvidence';
 import type { AuditExportFormat } from '../domain/auditExport';
 import { AUDIT_LIMITATIONS } from '../domain/auditExport';
 import type { ModelWorkerClient } from '../services/ModelWorkerClient';
+import ExactNumbers from './ExactNumbers';
 
 const PAGE = 20;
-const percent = (value: number | null) => value === null ? 'Not available' : `${number(value * 100)}%`;
 const sections = { overview: 'Overview', predictors: 'Predictors', trees: 'Tree diagnostics', history: 'History & context', findings: 'Review findings' } as const;
 type Section = keyof typeof sections;
 type Navigate = (treeIndex: number, nodeId: string) => void;
@@ -24,8 +24,9 @@ export default function ModelAudit({ analysis, client, onNode, onPredictor }: {
   if (!audit || !evidence) return <p role="alert">Local audit data is unavailable. Reopen the model to recompute it; no file is uploaded.</p>;
   return <section className="model-audit" aria-label="Local model insights">
     <h2 ref={title} tabIndex={-1}>Understand this model</h2>
-    <p>Computed from every accepted tree and node, locally. Explore structural evidence—not a model-health verdict, full v6.4 audit or new performance test.</p>
-    <nav className="workspace-actions" aria-label="Model insight sections">
+    <p className="section-intro">A readable guide to the whole model: what it contains, which predictors it uses and where to look closer. Calculated on this device, across every accepted tree and node.</p>
+    <p className="scope-note">These are structural observations—not a model-health verdict, full v6.4 audit or new performance test.</p>
+    <nav className="workspace-actions audit-tabs" aria-label="Model insight sections">
       {(Object.keys(sections) as Section[]).map(key => <button key={key} className="button button-quiet" aria-pressed={section === key} onClick={() => setSection(key)}>{sections[key]}</button>)}
     </nav>
     {section === 'overview' && <Overview evidence={evidence} audit={audit} sourceDigest={analysis.sourceDigest} />}
@@ -40,11 +41,20 @@ export default function ModelAudit({ analysis, client, onNode, onPredictor }: {
 function Overview({ evidence, audit, sourceDigest }: { evidence: ModelEvidence; audit: Audit; sourceDigest?: string }) {
   const metrics = auditMetrics(evidence);
   const highlighted = ['monitoring.totalCount', 'monitoring.pooledAUC', 'monitoring.exportedSuccessRate', 'structure.stumpTrees', 'structure.missingChecks', 'gain.totalInternalGain'];
+  const explanations: Record<string, string> = {
+    'monitoring.totalCount': 'The training-response counter in this export, not the number of unique people.',
+    'monitoring.pooledAUC': 'An exported ranking metric. It does not tell you whether probabilities are calibrated.',
+    'monitoring.exportedSuccessRate': 'The success-rate value stored in the export, shown as a percentage. This is not a new measurement.',
+    'structure.stumpTrees': 'Trees that return a score without asking a question. They can be an intentional baseline, not a fault.',
+    'structure.missingChecks': 'Questions that explicitly test whether an input is missing—not how often live inputs are missing.',
+    'gain.totalInternalGain': 'A total of stored training split gains. It is not revenue, causal influence or live model performance.',
+  };
   return <>
     <h3>What does this export tell us?</h3>
-    <div className="audit-cards">{metrics.filter(row => highlighted.includes(row.id)).map(row => <article key={row.id}>
-      <h4>{row.label}</h4><strong>{number(row.value)}</strong><p>{row.unit} · {row.provenance}</p>
-      <p>{row.value === null ? row.reason : row.limitation}</p>
+    <div className="audit-cards">{metrics.filter(row => highlighted.includes(row.id)).map(row => <article key={row.id} className={row.value === null ? 'metric-unavailable' : undefined}>
+      <span className={`evidence-source evidence-source-${row.provenance}`}>{row.value === null ? 'Not supplied or unusable' : row.provenance === 'exported' ? 'From the export' : 'Calculated locally'}</span>
+      <h4>{row.label}</h4><strong>{row.id === 'monitoring.exportedSuccessRate' ? percent(row.value) : number(row.value)}</strong>
+      <p>{row.value === null ? row.reason : explanations[row.id]}</p>
     </article>)}</div>
     <p>{evidence.coverage.trees} trees, {evidence.coverage.nodes} nodes and {evidence.coverage.leaves} leaves contribute to this analysis. {audit.predictors.length} distinct predictors are used. Leaf-gain or AUC availability does not gate independent structure calculations.</p>
     <details className="audit-details"><summary>Metric definitions, operands and availability</summary>
@@ -58,7 +68,7 @@ function Overview({ evidence, audit, sourceDigest }: { evidence: ModelEvidence; 
     </details>
     <section className="audit-primer" aria-label="From model score to decision">
       <h3>How does a tree score become a decision?</h3>
-      <ol><li><b>Leaf contributions</b> — one selected from each tree.</li><li><b>Raw score</b> — the sum of those contributions.</li><li><b>Raw probability</b> — sigmoid of a complete finite raw score; our walkthrough is unverified.</li><li><b>Calibration / exploration</b> — applicable platform behaviour and settings are not reconstructed here.</li><li><b>Business priority / arbitration</b> — not determined by this export alone.</li></ol>
+      <ol><li><b>Each tree adds a score</b><span>A profile reaches one leaf in each tree.</span></li><li><b>The scores add up</b><span>Their sum is the combined raw score.</span></li><li><b>A probability preview</b><span>Sigmoid converts a complete, finite sum. This walkthrough is unverified.</span></li><li><b>Platform adjustments</b><span>Calibration and exploration are not reconstructed here.</span></li><li><b>A business decision</b><span>Priority and arbitration are not determined by this export alone.</span></li></ol>
       <p>The last two stages are not observable from these local model statistics. Stored gain is not SHAP or business lift.</p>
     </section>
   </>;
@@ -80,25 +90,28 @@ function Predictors({ audit, onSelect }: { audit: Audit; onSelect: (row: AuditPr
     <p>Gain share measures stored internal split gain; split frequency counts questions; root frequency counts first questions. These are different structural observations—not causal effects or Pega SHAP importance.</p>
     {usable ? <figure>
       <BarChart title="Leading predictor gain shares" rows={points.map(row => ({ label: row.feature, value: row.gainShare!, onSelect: () => onSelect(row) }))} />
-      <div className="audit-chart" tabIndex={0} role="region" aria-label="Cumulative gain chart scroll area"><svg viewBox="0 0 560 200" role="img" aria-label="Cumulative gain share of the leading 20 predictors; exact values follow in the data table">
+      <div className="audit-chart" tabIndex={0} role="region" aria-label="Cumulative gain chart scroll area"><h4>How quickly does the gain add up?</h4><svg viewBox="0 0 560 220" role="img" aria-label="Cumulative gain share of the leading 20 predictors; exact values follow in the data table">
         <line x1="54" x2="540" y1="160" y2="160" className="trend-axis" />
         {[0, .5, 1].map(value => <g key={value}><line x1="54" x2="540" y1={160 - 130 * value} y2={160 - 130 * value} className="trend-grid" /><text x="48" y={164 - 130 * value} textAnchor="end">{value * 100}%</text></g>)}
         <path className="trend-line" d={points.map((row, index) => `${index ? 'L' : 'M'}${54 + (index + 1) / points.length * 486},${160 - 130 * row.cumulative}`).join(' ')} />
-        <text x="280" y="188" textAnchor="middle">Predictors in descending stored gain order</text>
+        {points.map((row, index) => <circle key={row.feature} className="trend-point" cx={54 + (index + 1) / points.length * 486} cy={160 - 130 * row.cumulative} r="4"><title>{row.feature}: {percent(row.cumulative)} cumulative gain</title></circle>)}
+        <text x={54 + 486 / points.length} y="182" textAnchor="middle">1</text>{points.length > 1 && <text x="540" y="182" textAnchor="end">{points.length}</text>}
+        <text x="280" y="208" textAnchor="middle">Number of predictors, highest gain first</text>
       </svg></div>
-      <figcaption>Leading {points.length} of {audit.predictors.length} predictors account for {percent(points.at(-1)?.cumulative ?? null)} of total internal gain. Chart values are proportions; all exact rows are in the table and local download.</figcaption>
+      <figcaption>Leading {points.length} of {audit.predictors.length} predictors account for {percent(points.at(-1)?.cumulative ?? null)} of total internal gain. Each step adds the next predictor&apos;s share. A fast rise means gain is concentrated in fewer predictors—not that the model is better. Exact values are in the table and local download.</figcaption>
     </figure> : <p>Gain shares are unavailable because total internal gain is incomplete, nonfinite or zero. Split counts, root frequency and other independent metrics remain available below.</p>}
     <label>Find an audit predictor<input type="search" value={search} onChange={event => { setSearch(event.target.value); setPage(0); }} /></label>
     <label>Rank predictors by<select value={sort} onChange={event => { const value = event.target.value; if (value === 'gain' || value === 'splitCount' || value === 'rootCount') { setSort(value); setPage(0); } }}><option value="gain">Stored internal gain</option><option value="splitCount">Split frequency</option><option value="rootCount">Root frequency</option></select></label>
     <Scroll label="Predictor evidence table"><table className="evolution-table"><caption>Exact predictor evidence across the ensemble ({filtered.length} matches)</caption>
-      <thead><tr>{['Predictor / evidence', 'Literal namespace / provisional role', 'Stored gain / share', 'Splits / roots', 'Mean split depth (edges)', 'Missing checks'].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
-      <tbody>{filtered.slice(page * PAGE, (page + 1) * PAGE).map(row => <tr key={row.feature}><th scope="row"><button className="audit-link" onClick={() => onSelect(row)}>{row.feature}</button></th><td>{row.namespace}<br />{row.role}<br />Upstream provenance: unverified</td><td>{row.gain === null ? 'Not available' : String(row.gain)} / {row.gainShare === null ? 'Not available' : String(row.gainShare)}</td><td>{row.splitCount} / {row.rootCount}</td><td>{String(row.meanDepth)}</td><td>{row.missingChecks}</td></tr>)}</tbody>
+      <thead><tr>{['Predictor / evidence', 'Stored gain / share', 'Name prefix / provisional role', 'Questions / first questions', 'Average depth (edges)', 'Missing checks'].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
+      <tbody>{filtered.slice(page * PAGE, (page + 1) * PAGE).map(row => <tr key={row.feature}><th scope="row"><button className="audit-link" onClick={() => onSelect(row)}>{row.feature}</button><ExactNumbers values={{ 'Stored gain': row.gain, 'Share (proportion)': row.gainShare, 'Mean depth (edges)': row.meanDepth }} /></th><td><b className="numeric-value">{number(row.gain)}</b><span className="table-secondary">{percent(row.gainShare)} of total</span></td><td><span className="namespace-tag">{row.namespace}</span><p className="table-note">{row.role}<br />Upstream provenance: unverified</p></td><td>{number(row.splitCount)} / {number(row.rootCount)}</td><td>{number(row.meanDepth)}</td><td>{number(row.missingChecks)}</td></tr>)}</tbody>
     </table></Scroll>
+    <p className="scope-note">Shares are shown as percentages and long decimals are rounded for readability. Open a row&apos;s Exact numbers for full precision. “First questions” means splits at a tree&apos;s root.</p>
     {!filtered.length && <p>No matching predictors. Change the search to see other evidence.</p>}
     <Pages label="Audit predictors" page={page} total={filtered.length} onPage={setPage} />
     <h3>Which literal namespaces supply split gain?</h3>
     <BarChart title="Namespace gain shares" rows={audit.namespaces.filter(row => row.gainShare !== null).sort((a, b) => b.gainShare! - a.gainShare!).slice(0, PAGE).map(row => ({ label: row.namespace, value: row.gainShare! }))} />
-    <Scroll label="Namespace evidence"><table className="evolution-table"><caption>Literal namespace evidence</caption><thead><tr><th scope="col">Namespace</th><th scope="col">Predictors</th><th scope="col">Splits</th><th scope="col">Gain share</th></tr></thead><tbody>{audit.namespaces.slice(namespacePage * PAGE, (namespacePage + 1) * PAGE).map(row => <tr key={row.namespace}><th scope="row">{row.namespace}</th><td>{row.predictors}</td><td>{row.splits}</td><td>{row.gainShare === null ? 'Not available' : String(row.gainShare)}</td></tr>)}</tbody></table></Scroll>
+    <Scroll label="Namespace evidence"><table className="evolution-table"><caption>Literal namespace evidence</caption><thead><tr><th scope="col">Namespace</th><th scope="col">Predictors</th><th scope="col">Splits</th><th scope="col">Gain share</th></tr></thead><tbody>{audit.namespaces.slice(namespacePage * PAGE, (namespacePage + 1) * PAGE).map(row => <tr key={row.namespace}><th scope="row">{row.namespace}</th><td>{number(row.predictors)}</td><td>{number(row.splits)}</td><td>{percent(row.gainShare)}<ExactNumbers values={{ 'Share (proportion)': row.gainShare }} /></td></tr>)}</tbody></table></Scroll>
     <Pages label="Audit namespaces" page={namespacePage} total={audit.namespaces.length} onPage={setNamespacePage} />
     <p>Namespace is the literal prefix before the first dot; unqualified names form their own group. Roles are provisional name-based interpretations, not evidence that a predictor came from another model. The leading 20 gain shares are charted; page through all exact namespace rows below.</p>
   </>;
@@ -110,23 +123,23 @@ function TreeDiagnostics({ trees, onNode }: { trees: AuditTree[]; onNode: Naviga
   const labels = { gain: 'Stored internal gain', cumulativeGain: 'Cumulative stored gain', rootCount: 'Exported root sampleCount', depthEdges: 'Depth in edges (root = 0)' };
   const rows = trees.slice(page * PAGE, (page + 1) * PAGE);
   const maximum = rows.reduce((value, row) => Math.max(value, row[metric] ?? 0), 0) || 1;
-  const x = (index: number) => 72 + index / Math.max(1, rows.length - 1) * 450;
-  const y = (value: number) => 160 - value / maximum * 130;
+  const x = (index: number) => 96 + index / Math.max(1, rows.length - 1) * 470;
+  const y = (value: number) => 180 - value / maximum * 130;
   return <>
     <h3>How does structure vary by tree export order?</h3>
     <p>Tree number is export index + 1. Order is not a verified timeline; root counters are not tree birth dates or unique customers. Root depth is zero edges (one level in the explorer).</p>
     <label>Tree diagnostic metric<select value={metric} onChange={event => { const key = event.target.value; if (key === 'gain' || key === 'cumulativeGain' || key === 'rootCount' || key === 'depthEdges') setMetric(key); }}>{Object.entries(labels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
-    <figure className="audit-chart" tabIndex={0} aria-label="Tree diagnostic chart scroll area"><svg viewBox="0 0 560 225" role="group" aria-label={`${labels[metric]} by tree export order; select a point or table link to explore`}>
-      <line x1="72" x2="522" y1="160" y2="160" className="trend-axis" />
-      <text x="72" y="18">Scale maximum: {number(maximum)}</text><text x="65" y="164" textAnchor="end">0</text>
+    <figure className="audit-chart" tabIndex={0} aria-label="Tree diagnostic chart scroll area"><svg viewBox="0 0 600 240" role="group" aria-label={`${labels[metric]} by tree export order; select a point or table link to explore`}>
+      <text x="96" y="22">{labels[metric]}</text>
+      {[0, .5, 1].map(ratio => <g key={ratio}><line x1="96" x2="566" y1={y(maximum * ratio)} y2={y(maximum * ratio)} className={ratio ? 'trend-grid' : 'trend-axis'} /><text x="86" y={y(maximum * ratio) + 4} textAnchor="end">{axisNumber(maximum * ratio)}</text></g>)}
       {rows.map((row, index) => row[metric] === null ? null : <g key={row.treeIndex}>
         {index > 0 && rows[index - 1][metric] !== null && <line x1={x(index - 1)} x2={x(index)} y1={y(rows[index - 1][metric]!)} y2={y(row[metric]!)} className="trend-line" />}
         <circle role="button" tabIndex={0} aria-label={`Explore Tree ${row.treeIndex + 1}: ${labels[metric]} ${row[metric]}`} cx={x(index)} cy={y(row[metric]!)} r="6" className="trend-point" onClick={() => onNode(row.treeIndex, 'root')} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onNode(row.treeIndex, 'root'); } }}><title>Tree {row.treeIndex + 1} — index {row.treeIndex}: {String(row[metric])}</title></circle>
       </g>)}
-      <text x="72" y="183">Tree {rows[0].treeIndex + 1}</text><text x="522" y="183" textAnchor="end">Tree {rows.at(-1)!.treeIndex + 1}</text>
-      <text x="280" y="211" textAnchor="middle">{labels[metric]} · tree export order</text>
-    </svg><figcaption>Showing {rows.length} of {trees.length} trees. Missing values leave gaps, never zeroes. Page through all trees below.</figcaption></figure>
-    <Scroll label="Tree diagnostic evidence"><table className="evolution-table"><caption>Exact tree-order diagnostic data</caption><thead><tr>{['Tree / export index', 'Gain', 'Cumulative gain', 'Root counter', 'Depth (edges)', 'Signed leaf-score range'].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{rows.map(row => <tr key={row.treeIndex}><th scope="row"><button className="audit-link" onClick={() => onNode(row.treeIndex, 'root')}>Tree {row.treeIndex + 1} — index {row.treeIndex}</button></th><td>{row.gain === null ? 'Not available' : String(row.gain)}</td><td>{row.cumulativeGain === null ? 'Not available' : String(row.cumulativeGain)}</td><td>{row.rootCount}</td><td>{row.depthEdges}</td><td>{String(row.minimumLeafScore)} to {String(row.maximumLeafScore)}</td></tr>)}</tbody></table></Scroll>
+      <text x="96" y="204">Tree {rows[0].treeIndex + 1}</text><text x="566" y="204" textAnchor="end">Tree {rows.at(-1)!.treeIndex + 1}</text>
+      <text x="330" y="232" textAnchor="middle">Tree number (export order, not time)</text>
+    </svg><figcaption>Each point is one tree; select it to open that complete tree. Showing {rows.length} of {trees.length} trees. Missing values leave gaps, never zeroes. Page through all trees below.</figcaption></figure>
+    <Scroll label="Tree diagnostic evidence"><table className="evolution-table"><caption>Exact tree-order diagnostic data</caption><thead><tr>{['Tree / export index', 'Gain', 'Cumulative gain', 'Root counter', 'Depth (edges)', 'Signed leaf-score range'].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{rows.map(row => <tr key={row.treeIndex}><th scope="row"><button className="audit-link" onClick={() => onNode(row.treeIndex, 'root')}>Tree {row.treeIndex + 1} — index {row.treeIndex}</button><ExactNumbers values={{ Gain: row.gain, 'Cumulative gain': row.cumulativeGain, 'Minimum leaf score': row.minimumLeafScore, 'Maximum leaf score': row.maximumLeafScore }} /></th><td>{number(row.gain)}</td><td>{number(row.cumulativeGain)}</td><td>{number(row.rootCount)}</td><td>{row.depthEdges}</td><td>{number(row.minimumLeafScore)} to {number(row.maximumLeafScore)}</td></tr>)}</tbody></table></Scroll>
     <Pages label="Audit trees" page={page} total={trees.length} onPage={setPage} />
   </>;
 }
@@ -143,6 +156,7 @@ function History({ audit, onSelect, onNode }: { audit: Audit; onSelect: (row: Au
   const maxDepthCount = audit.depthNamespaces.reduce((maximum, row) => Math.max(maximum, row.splits), 1);
   return <>
     <h3>Which boundaries and contexts does the structure use?</h3>
+    <p className="section-intro">A threshold is a cut-off used by a question, such as “age below 35.” A membership question checks a list of values. These charts describe the model&apos;s questions—not how customers are distributed.</p>
     <p>Interaction History includes {ihRows.length} distinct IH-prefixed predictors and {ihRows.reduce((sum, row) => sum + row.splitCount, 0)} splits. Names are shown verbatim: outcome/type interpretations remain hypotheses. Membership values and thresholds describe stored conditions, not customer distributions.</p>
     <label>Find a threshold or context predictor<input type="search" value={search} onChange={event => { setSearch(event.target.value); setPage(0); }} /></label>
     <Scroll label="Threshold and membership inventory"><table className="evolution-table"><caption>Numeric, membership and missing-check inventory ({rows.length} matches)</caption><thead><tr>{['Predictor / occurrence', 'Numeric splits', 'Threshold minimum / maximum', 'Membership splits / distinct observed values', 'Numeric-looking / singleton splits', 'Explicit missing checks', 'Distribution'].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead><tbody>{rows.slice(page * PAGE, (page + 1) * PAGE).map(row => <tr key={row.feature}><th scope="row"><button className="audit-link" onClick={() => onSelect(row)}>{row.feature}</button></th><td>{row.numericSplits}</td><td>{row.minimumThreshold === null ? 'Not available' : String(row.minimumThreshold)} / {row.maximumThreshold === null ? 'Not available' : String(row.maximumThreshold)}</td><td>{row.membershipSplits} / {row.observedCategories}</td><td>{row.numericLookingSplits} / {row.singletonSplits}</td><td>{row.missingChecks}</td><td><button className="button button-quiet" disabled={!row.numericSplits} onClick={() => setSelected(row.feature)}>Inspect thresholds for {row.feature}</button></td></tr>)}</tbody></table></Scroll>
@@ -159,7 +173,7 @@ function History({ audit, onSelect, onNode }: { audit: Audit; onSelect: (row: Au
     <Scroll label="Depth namespace heatmap"><table className="evolution-table"><caption>Depth × literal namespace heatmap (all cells available by paging)</caption><thead><tr><th scope="col">Depth (edges, root = 0)</th><th scope="col">Namespace</th><th scope="col">Split count</th></tr></thead><tbody>{audit.depthNamespaces.slice(depthPage * PAGE, (depthPage + 1) * PAGE).map(row => <tr key={`${row.depth}-${row.namespace}`}><td>{row.depth}</td><th scope="row">{row.namespace}</th><td><span className="audit-heat" style={{ backgroundColor: `rgba(49,95,77,${.08 + row.splits / maxDepthCount * .22})` }}>{row.splits}</span></td></tr>)}</tbody></table></Scroll>
     <Pages label="Depth cells" page={depthPage} total={audit.depthNamespaces.length} onPage={setDepthPage} />
     <LeafDensity bins={audit.leafBins} onNode={onNode} />
-    <Scroll label="Leaf density data"><table className="evolution-table"><caption>Exact whole-ensemble leaf-density bins</caption><thead><tr>{['Signed score from / to', 'log(1 + counter) from / to', 'Leaves', 'Example evidence'].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead><tbody>{audit.leafBins.slice(leafPage * PAGE, (leafPage + 1) * PAGE).map((bin, index) => <tr key={index}><td>{String(bin.scoreFrom)} / {String(bin.scoreTo)}</td><td>{String(bin.logCountFrom)} / {String(bin.logCountTo)}</td><td>{bin.leaves}</td><td><button className="audit-link" onClick={() => onNode(bin.treeIndex, bin.nodeId)}>Tree {bin.treeIndex + 1}, {bin.nodeId}</button></td></tr>)}</tbody></table></Scroll>
+    <Scroll label="Leaf density data"><table className="evolution-table"><caption>Exact whole-ensemble leaf-density bins</caption><thead><tr>{['Signed score from / to', 'log(1 + counter) from / to', 'Leaves', 'Example evidence'].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead><tbody>{audit.leafBins.slice(leafPage * PAGE, (leafPage + 1) * PAGE).map((bin, index) => <tr key={index}><td>{number(bin.scoreFrom)} / {number(bin.scoreTo)}<ExactNumbers values={{ 'Score from': bin.scoreFrom, 'Score to': bin.scoreTo, 'Log counter from': bin.logCountFrom, 'Log counter to': bin.logCountTo }} /></td><td>{number(bin.logCountFrom)} / {number(bin.logCountTo)}</td><td>{bin.leaves}</td><td><button className="audit-link" onClick={() => onNode(bin.treeIndex, bin.nodeId)}>Tree {bin.treeIndex + 1}, {bin.nodeId}</button></td></tr>)}</tbody></table></Scroll>
     <Pages label="Leaf bins" page={leafPage} total={audit.leafBins.length} onPage={setLeafPage} />
   </>;
 }
@@ -169,7 +183,7 @@ function LeafDensity({ bins, onNode }: { bins: Audit['leafBins']; onNode: Naviga
   const maxLog = Math.max(...bins.map(row => row.logCountTo)), maxLeaves = Math.max(...bins.map(row => row.leaves));
   const x = (value: number) => maximum === minimum ? 290 : 72 + rangeFraction(value, minimum, maximum) * 450;
   const y = (value: number) => maxLog ? 160 - value / maxLog * 130 : 160;
-  return <figure className="audit-chart" tabIndex={0} aria-label="Leaf density chart scroll area"><h3>Where are signed leaf contributions concentrated?</h3><svg viewBox="0 0 560 215" role="group" aria-label="All-leaf density by signed score and log counter; select a bin for one example">
+  return <figure className="audit-chart" tabIndex={0} aria-label="Leaf density chart scroll area"><h3>Where are signed leaf contributions concentrated?</h3><p>Left means a lower score contribution; right means a higher one. Higher dots have larger exported counters on a compressed log scale. Larger dots contain more leaves. None of these directions means “better.”</p><svg viewBox="0 0 560 215" role="group" aria-label="All-leaf density by signed score and log counter; select a bin for one example">
     <line x1="72" x2="522" y1="160" y2="160" className="trend-axis" />
     <text x="65" y="30" textAnchor="end">{number(maxLog)}</text><text x="65" y="164" textAnchor="end">0</text>
     {bins.map((bin, index) => <circle key={index} cx={x(interpolateRange(bin.scoreFrom, bin.scoreTo, .5))} cy={y(bin.logCountFrom / 2 + bin.logCountTo / 2)} r={3 + Math.sqrt(bin.leaves / maxLeaves) * 6} className="trend-point" role="button" tabIndex={0} aria-label={`${bin.leaves} leaves; example Tree ${bin.treeIndex + 1}, ${bin.nodeId}`} onClick={() => onNode(bin.treeIndex, bin.nodeId)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onNode(bin.treeIndex, bin.nodeId); } }}><title>{bin.leaves} leaves; score {number(bin.scoreFrom)} to {number(bin.scoreTo)}</title></circle>)}

@@ -5,6 +5,8 @@ import type { EvolutionMetric, EvolutionSnapshot } from '../domain/modelEvolutio
 import type { ValidationIssue } from '../domain/agb';
 import { ModelWorkerClient } from '../services/ModelWorkerClient';
 import { Term } from './TechnicalTerms';
+import ExactNumbers from './ExactNumbers';
+import { formatAuditAxisNumber, formatAuditNumber, formatAuditPercent } from '../domain/modelAudit';
 
 const PAGE_SIZE = 10;
 const metricKeys = Object.keys(EVOLUTION_METRICS) as EvolutionMetric[];
@@ -106,8 +108,9 @@ export default function ModelEvolution() {
 
   return <section className="model-evolution" aria-label="Model evolution">
     <h2>Model evolution{label.trim() ? `: ${label.trim()}` : ''}</h2>
-    <p>Import exports of the same model from different times to compare structure and available training metadata. Files are analyzed sequentially in a local worker; only summaries are retained, not additional forests. Nothing in this comparison is uploaded or added to the open model&apos;s AI request.</p>
-    <p>Snapshots are held in memory only. Switching workspace views preserves them; closing the model/comparison, refreshing or leaving the page clears them. The open export is not automatically included: select its file too if it belongs in this series.</p>
+    <p className="section-intro">Bring two or more exports of the same model to see what changed. Compare its size, predictor usage and stored metrics—not just a single tree.</p>
+    <p className="scope-note">Files stay on this device; only summaries are kept in memory. Refreshing or closing clears the comparison. The open export is not automatically included: select its file too if it belongs in this series.</p>
+    <details className="audit-details"><summary>How comparison data is handled</summary><p>Files are analyzed sequentially in a local worker; only summaries are retained, not additional forests. Nothing in this comparison is uploaded or added to the open model&apos;s AI request. Switching workspace views preserves snapshots; closing the model/comparison, refreshing or leaving the page clears them.</p></details>
     <label className="evolution-label">Snapshot series name (optional)<input value={label} maxLength={200} onChange={event => setLabel(event.target.value)} /></label>
     <p className="preview-notice">The accepted export contains no reliable model identity. Export tags, filenames and matching predictors cannot establish that these are the same model.</p>
     <label className="evolution-confirm"><input type="checkbox" checked={confirmed} disabled={busy} onChange={event => setConfirmed(event.target.checked)} /> I confirm these snapshots belong to the same model.</label>
@@ -128,7 +131,7 @@ export default function ModelEvolution() {
       </li>)}</ul>
       <Pages label="Import report" page={reportPage} total={notices.length} onPage={setReportPage} />
     </details>}
-    {!snapshots.length ? <p className="evolution-empty">Add at least two dated snapshots to display trends. Missing metrics remain unavailable, never zero. Structural changes do not by themselves demonstrate improved performance.</p> : <>
+    {!snapshots.length ? <div className="evolution-empty"><h3>Start with two snapshots</h3><ol><li>Confirm the files belong to the same model.</li><li>Choose exports from at least two different times.</li><li>Check their UTC dates, then compare the charts.</li></ol><p>Missing metrics remain unavailable, never zero. A structural change alone does not demonstrate improved performance.</p></div> : <>
       <h3>Snapshot dates and membership</h3>
       <p>{snapshots.length} snapshots retained; {chronology.dated.length} dated; {chronology.undated.length} excluded from trends until a valid UTC time is supplied. Imported timestamps come from factoryUpdateTime, not filenames or file-modification times. Manual time fields mean UTC, not your device&apos;s local time.</p>
       <Term term="timestamp" /><Term term="exportTag" />
@@ -189,9 +192,10 @@ function TrendChart({ snapshots, group, initial, title }: { snapshots: Evolution
   const x = (snapshot: EvolutionSnapshot) => 72 + (Date.parse(snapshot.time!) - firstTime) / (lastTime - firstTime) * 388;
   const y = (value: number) => 164 - value / maximum * 140;
   const label = EVOLUTION_METRICS[metric].label;
-  const tick = (value: number) => formatEvolutionValue(metric, value);
+  const tick = (value: number) => absolute ? formatAuditAxisNumber(value) : formatEvolutionValue(metric, value);
   return <section className="evolution-chart" aria-label={title}>
     <h3>{title}</h3>
+    <p className="scope-note">{group === 'structure' ? 'Follow the size and shape of the model, not its predictive quality.' : group === 'evaluation' ? 'Read metrics stored in each export. They may describe different evaluation populations or windows.' : group === 'training' ? 'These exported counters are training observations, not unique people.' : 'See how the stored training split-gain total changes between exports.'}</p>
     <label>Chart metric<select aria-label={`${title} metric`} value={metric} onChange={event => { const key = metrics.find(key => key === event.target.value); if (key) setMetric(key); }}>
       {metrics.map(key => <option key={key} value={key}>{EVOLUTION_METRICS[key].label}</option>)}
     </select></label>
@@ -242,13 +246,14 @@ function StructuralChanges({ comparison }: { comparison: ReturnType<typeof compa
   const [thresholdPage, setThresholdPage] = useState(0);
   const [membershipPage, setMembershipPage] = useState(0);
   if (!comparison.auditAvailable) return <p>Detailed structural summaries are unavailable at one or both endpoints. Reimport the snapshots to compute them.</p>;
-  const share = (value: number | null) => value === null ? 'Not available' : `${String(value * 100)}%`;
+  const share = formatAuditPercent;
   return <section aria-label="Structural evolution details">
     <h4>Which shared predictors changed gain share or rank?</h4>
     <p>Ranks use complete positive total gain and shared ranks for ties. Added/removed predictors are listed separately. A share or rank change is not evidence of drift, causality or changed live performance.</p>
-    <div className="evolution-table-scroll" tabIndex={0} role="region" aria-label="Predictor gain movers"><table className="evolution-table"><caption>Shared predictor gain-share changes</caption><thead><tr><th scope="col">Predictor</th><th scope="col">Earliest share</th><th scope="col">Latest share</th><th scope="col">Change (percentage points)</th><th scope="col">Earliest / latest rank</th></tr></thead><tbody>{comparison.gainMovers.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map(row => <tr key={row.feature}><th scope="row">{row.feature}</th><td>{share(row.before)}</td><td>{share(row.after)}</td><td>{row.delta === null ? 'Not available' : String(row.delta * 100)}</td><td>{row.rankBefore ?? 'Not available'} / {row.rankAfter ?? 'Not available'}</td></tr>)}</tbody></table></div>
+    <div className="evolution-table-scroll" tabIndex={0} role="region" aria-label="Predictor gain movers"><table className="evolution-table"><caption>Shared predictor gain-share changes</caption><thead><tr><th scope="col">Predictor</th><th scope="col">Earliest share</th><th scope="col">Latest share</th><th scope="col">Change (percentage points)</th><th scope="col">Earliest / latest rank</th></tr></thead><tbody>{comparison.gainMovers.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map(row => <tr key={row.feature}><th scope="row">{row.feature}<ExactNumbers values={{ 'Earliest share (proportion)': row.before, 'Latest share (proportion)': row.after, 'Change (proportion)': row.delta }} /></th><td>{share(row.before)}</td><td>{share(row.after)}</td><td>{row.delta === null ? 'Not available' : formatAuditNumber(row.delta * 100)}</td><td>{row.rankBefore ?? 'Not available'} / {row.rankAfter ?? 'Not available'}</td></tr>)}</tbody></table></div>
     <Pages label="Gain movers" page={page} total={comparison.gainMovers.length} onPage={setPage} />
-    <div className="evolution-table-scroll" tabIndex={0} role="region" aria-label="Namespace composition changes"><table className="evolution-table"><caption>Literal namespace gain composition</caption><thead><tr><th scope="col">Namespace</th><th scope="col">Earliest share</th><th scope="col">Latest share</th></tr></thead><tbody>{comparison.namespaceChanges.slice(namespacePage * PAGE_SIZE, (namespacePage + 1) * PAGE_SIZE).map(row => <tr key={row.namespace}><th scope="row">{row.namespace}</th><td>{share(row.before)}</td><td>{share(row.after)}</td></tr>)}</tbody></table></div>
+    <div className="evolution-table-scroll" tabIndex={0} role="region" aria-label="Namespace composition changes"><table className="evolution-table"><caption>Literal namespace gain composition</caption><thead><tr><th scope="col">Namespace</th><th scope="col">Earliest share</th><th scope="col">Latest share</th></tr></thead><tbody>{comparison.namespaceChanges.slice(namespacePage * PAGE_SIZE, (namespacePage + 1) * PAGE_SIZE).map(row => <tr key={row.namespace}><th scope="row">{row.namespace}<ExactNumbers values={{ 'Earliest share (proportion)': row.before, 'Latest share (proportion)': row.after }} /></th><td>{share(row.before)}</td><td>{share(row.after)}</td></tr>)}</tbody></table></div>
+    <p className="scope-note">Percentages are rounded for scanning. Open Exact numbers to inspect the original proportions; a percentage-point change compares two percentages, not a relative growth rate.</p>
     <Pages label="Namespace changes" page={namespacePage} total={comparison.namespaceChanges.length} onPage={setNamespacePage} />
     <h4>Which stored numeric boundaries or split frequencies changed?</h4>
     <p>Comparing exact threshold histogram boundaries and counts for shared predictors—not customer distributions or like-for-like tree identities.</p>
@@ -276,10 +281,10 @@ function MetricTable({ snapshots }: { snapshots: EvolutionSnapshot[] }) {
   const visiblePage = Math.min(page, Math.max(0, Math.ceil(snapshots.length / PAGE_SIZE) - 1));
   return <section aria-label="Snapshot metrics">
     <h3>Exact snapshot metrics</h3>
-    <p>Structure counts below cover the entire ensemble in each file. AUC is a proportion; success rate is a percentage. Evaluation displays are rounded, with the exact parsed export value alongside. A table row can be retained even when its timestamp is missing.</p>
+    <p>Structure counts below cover the entire ensemble in each file. AUC is a proportion; success rate is a percentage. Displays are rounded for scanning; each file&apos;s Exact numbers retains full precision, with parsed evaluation values also alongside. Undated snapshots remain in this table.</p>
     <div className="evolution-table-scroll" role="region" aria-label="Snapshot metrics table scroll area" tabIndex={0}>
       <table className="evolution-table"><caption>Exact metrics for all retained snapshots</caption><thead><tr><th scope="col">File / UTC time</th>{metricKeys.map(metric => <th scope="col" key={metric}>{EVOLUTION_METRICS[metric].label}</th>)}</tr></thead><tbody>
-        {snapshots.slice(visiblePage * PAGE_SIZE, (visiblePage + 1) * PAGE_SIZE).map(snapshot => <tr key={snapshot.id}><th scope="row">{snapshot.name}<br />{snapshot.time ?? 'Time not available'}</th>{metricKeys.map(metric => <td key={metric}>{formatEvolutionValue(metric, snapshot.metrics[metric])}{EVOLUTION_METRICS[metric].group === 'evaluation' && snapshot.metrics[metric] !== null && <small className="evolution-raw-metric">Parsed export: {String(snapshot.metrics[metric])}</small>}</td>)}</tr>)}
+        {snapshots.slice(visiblePage * PAGE_SIZE, (visiblePage + 1) * PAGE_SIZE).map(snapshot => <tr key={snapshot.id}><th scope="row">{snapshot.name}<br />{snapshot.time ?? 'Time not available'}<ExactNumbers values={snapshot.metrics} /></th>{metricKeys.map(metric => <td key={metric}>{formatEvolutionValue(metric, snapshot.metrics[metric])}{EVOLUTION_METRICS[metric].group === 'evaluation' && snapshot.metrics[metric] !== null && <small className="evolution-raw-metric">Parsed export: {String(snapshot.metrics[metric])}</small>}</td>)}</tr>)}
       </tbody></table>
     </div>
     <Pages label="Metrics" page={visiblePage} total={snapshots.length} onPage={setPage} />

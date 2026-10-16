@@ -12,6 +12,7 @@ import { ModelWorkerClient } from './services/ModelWorkerClient';
 import type { ImportedWorkspace } from './services/workerProtocol';
 import TreeDiagram from './components/TreeDiagram';
 import ProfileTracePanel from './components/ProfileTracePanel';
+import PropensityMappingPanel from './components/PropensityMappingPanel';
 import ContextualAI from './components/ContextualAI';
 import ModelEvolution from './components/ModelEvolution';
 import TechnicalTerms, { Term } from './components/TechnicalTerms';
@@ -20,6 +21,12 @@ import type { ModelTerm } from './domain/glossary';
 
 const SAMPLE_URL = `${import.meta.env.BASE_URL}sample/export_PA_WebBuyNow_AGB_sample.json`;
 const TREE_PAGE_SIZE = 25;
+const WORKSPACE_VIEWS = {
+  explore: { label: 'Explore trees', description: 'Read the questions and outcomes in one tree.', heading: 'Follow a tree, one question at a time', guidance: 'Select a question or a leaf to read what it means. Every node in the selected tree is included; zoom, scroll or open fullscreen for more room.' },
+  trace: { label: 'Trace a profile', description: 'Try example inputs and follow their routes.', heading: 'See how example inputs travel through the model', guidance: 'Edit the illustrative profile to see which leaf each tree reaches and how its score contributes. This is a learning preview, not a prediction for a real customer.' },
+  evolution: { label: 'Model evolution', description: 'Compare exports from different dates.', heading: 'Understand what changed between snapshots', guidance: 'Add at least two exports of the same model. Compare structure and stored metrics over time; a change alone does not prove improvement or drift.' },
+  insights: { label: 'Model insights', description: 'Understand patterns across the whole model.', heading: 'See the whole model at a glance', guidance: 'Explore predictor usage, stored gain and structural patterns across every tree. Each view explains what a number means, where it came from and what it cannot tell you.' },
+} as const;
 
 export default function App() {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -117,8 +124,9 @@ export default function App() {
           <div className="start-copy">
             <p className="eyebrow">PEGA MODEL EXPLORER <span>/</span> 01</p>
             <h1 id="start-title">Open a model.<br /><em>Find its shape.</em></h1>
-            <p className="intro">Explore the observed Pega sample and UUID-v4-tagged export structures in a focused, local workspace. Other variants require adapter evidence; scoring remains unverified.</p>
-            <div className="format-note"><span className="format-glyph">{ }</span><span><b>JSON exports only</b><small>Up to 25 MB · local analysis; optional AI requires sharing approval</small></span></div>
+            <p className="intro">See how your Pega AGB model asks questions, uses predictors and changes over time. Start with your own export or explore the sample.</p>
+            <p className="start-note">Your file is analyzed on this device. Optional AI sharing requires your approval; scoring previews are not verified against Pega.</p>
+            <div className="format-note"><span className="format-glyph" aria-hidden="true">{'{ }'}</span><span><b>JSON exports only</b><small>Up to 25 MB · local analysis; optional AI requires sharing approval</small></span></div>
           </div>
           <div className="open-panel" aria-busy={busy}>
             <div className="panel-heading"><span>MODEL INPUT</span><span className="step-index">A / 01</span></div>
@@ -133,6 +141,7 @@ export default function App() {
               <span className="sample-icon">↗</span><span><b>Try the bundled sample</b><small>Small demonstration model</small></span><span className="sample-arrow">→</span>
             </button>
             <button className="button button-quiet" disabled={busy} onClick={() => setShowComparison(true)}>Compare model snapshots</button>
+            <details className="supported-formats"><summary>Supported exports and limits</summary><p>The observed Pega sample and UUID-v4-tagged export structures are supported. Other variants require adapter evidence; scoring remains unverified.</p></details>
             {busy && <><p role="status">{status}</p><button className="button button-quiet" onClick={cancelImport}>Cancel import</button></>}
             {error && <p className="error-message" role="alert">{error}</p>}
             {!!workspace?.result.issues.length && <ValidationReport result={workspace.result} />}
@@ -192,7 +201,7 @@ function Workspace({ model, analysis, result, fileName, client, onClose }: {
         <div><p className="eyebrow">MODEL WORKSPACE <span>/</span> OBSERVED STRUCTURE VALIDATED</p><h1 ref={titleRef} tabIndex={-1}>{fileName}</h1><p className="workspace-subtitle">Pega Adaptive Gradient Boosting <span className="version-tag">Export tag: {model.modelVersion}</span></p></div>
         <button className="button button-quiet" onClick={onClose}>Open another <span>↗</span></button>
       </div>
-      <p className="preview-notice">Unverified export preview. Pega oracle and live-CDH scoring parity are not established. Every tree and node is analyzed locally. The optional AI explanation at the bottom shares bounded whole-model evidence only after explicit approval, never the raw export, using a local server and the selected cloud provider.</p>
+      <aside className="workspace-notice" role="note"><b>Explore locally. Treat scoring as a preview.</b><p>Every tree and node is analyzed on this device. Scoring is not verified against Pega. The optional AI panel below shares only a limited computed summary after your approval, never the raw export.</p></aside>
       <details className="model-metadata"><summary>Model metadata and metric definitions</summary>
         <dl>
           <dt>Adapter provenance</dt><dd>{model.modelVersion === '2' ? 'Observed bundled sample-v2 shape' : 'Observed UUID-v4-tagged export structure'}; compatibility and scoring are not Pega-oracle certified. The export tag is preserved, not assumed to be a schema version.</dd>
@@ -210,12 +219,12 @@ function Workspace({ model, analysis, result, fileName, client, onClose }: {
         <Metric label="Nodes across all trees" term="ensembleNodes" value={result.nodeCount.toLocaleString()} /><Metric label="Deepest path in ensemble" term="depth" value={`${result.maxDepth + 1} levels`} />
       </div>
       {ensembleTrace.arithmeticIssue && <p className="error-message" role="alert">{ensembleTrace.arithmeticIssue}</p>}
-      <div className="workspace-actions" aria-label="Workspace tasks">
-        <button className="button button-quiet" aria-pressed={view === 'explore'} onClick={() => setView('explore')}>Explore trees</button>
-        <button className="button button-quiet" aria-pressed={view === 'trace'} onClick={() => setView('trace')}>Trace a profile</button>
-        <button className="button button-quiet" aria-pressed={view === 'evolution'} onClick={() => setView('evolution')}>Model evolution</button>
-        <button className="button button-quiet" aria-pressed={view === 'insights'} onClick={() => setView('insights')}>Model insights</button>
+      <div className="workspace-actions workspace-tasks" aria-label="Workspace tasks">
+        {(Object.keys(WORKSPACE_VIEWS) as Array<keyof typeof WORKSPACE_VIEWS>).map(key => <button key={key} className="button button-quiet workspace-task" data-view={key} aria-label={WORKSPACE_VIEWS[key].label} aria-describedby={`workspace-task-${key}`} aria-pressed={view === key} onClick={() => setView(key)}>
+          <span>{WORKSPACE_VIEWS[key].label}</span><small id={`workspace-task-${key}`}>{WORKSPACE_VIEWS[key].description}</small>
+        </button>)}
       </div>
+      <div className="workspace-view-guide" aria-label="About this workspace view"><h2>{WORKSPACE_VIEWS[view].heading}</h2><p>{WORKSPACE_VIEWS[view].guidance}</p></div>
       <div className="explorer-layout" aria-hidden={view === 'evolution' || view === 'insights'} style={view === 'evolution' || view === 'insights' ? { contentVisibility: 'hidden', height: 0, minHeight: 0, overflow: 'hidden' } : undefined}>
         <aside className="tree-index" aria-label="Ensemble and predictor search">
           <button className="mobile-navigation-toggle" aria-expanded={navigationOpen} aria-controls="workspace-navigation" onClick={() => setNavigationOpen(value => !value)}>Find a tree or predictor</button>
@@ -260,6 +269,7 @@ function Workspace({ model, analysis, result, fileName, client, onClose }: {
               onValueChange={(feature, value) => updateProfile({ ...profileValues, [feature]: value })} onTreeChange={selectTree}
               onRegenerate={() => { const next = profileVariant + 1; setProfileVariant(next); updateProfile(createIllustrativeProfile(analysis.features, next)); }}
               onReset={() => { setProfileVariant(0); updateProfile(createIllustrativeProfile(analysis.features)); }} />
+            <PropensityMappingPanel binding={{ sourceSha256: analysis.sourceDigest, exportTag: model.modelVersion, exportUpdateTime: model.factoryUpdateTime ?? null }} trace={ensembleTrace} />
           </div>
         </section>
       </div>

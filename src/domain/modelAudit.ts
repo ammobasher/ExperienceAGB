@@ -40,8 +40,17 @@ export function finite(value: number): number | null { return Number.isFinite(va
 export function formatAuditNumber(value: number | null): string {
   if (value === null) return 'Not available';
   if (value === 0) return '0';
-  if (Math.abs(value) < .0001 || Math.abs(value) >= 1e9) return value.toExponential(6);
-  return value.toLocaleString(undefined, { maximumSignificantDigits: 9 });
+  if (Number.isSafeInteger(value)) return value.toLocaleString();
+  if (Math.abs(value) < .0001 || Math.abs(value) >= 1e9) return value.toExponential(3);
+  return value.toLocaleString(undefined, { maximumSignificantDigits: 6 });
+}
+export function formatAuditPercent(value: number | null): string {
+  if (value === null) return 'Not available';
+  const percentage = value * 100;
+  return `${percentage !== 0 && Math.abs(percentage) < .01 ? formatAuditNumber(percentage) : percentage.toLocaleString(undefined, { maximumFractionDigits: 2 })}%`;
+}
+export function formatAuditAxisNumber(value: number): string {
+  return Math.abs(value) >= 10000 ? value.toLocaleString(undefined, { notation: 'compact', maximumSignificantDigits: 3 }) : formatAuditNumber(value);
 }
 export function rangeFraction(value: number, minimum: number, maximum: number) {
   if (minimum === maximum) return 0;

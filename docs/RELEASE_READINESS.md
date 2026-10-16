@@ -30,6 +30,69 @@ This is a local exploratory release, not a public production deployment. HTTPS/H
 
 The Actions CI configuration checks install, units/components, TypeScript, reference-host boundaries, production build and serial production-browser E2E/axe/performance plus subpath-hosting cases. It uploads browser evidence even on failures. Hosted CI passed for the published baseline; changed-source local acceptance and a later publication's hosted CI are distinct.
 
+## Optional score-to-propensity companion follow-up, 2026-10-15
+
+The owner approved the app-defined companion format rather than claiming a
+native Pega Classifier adapter. **Trace a profile** now accepts supplied,
+model-bound monotonic intervals with an explicit raw-score/sigmoid input domain,
+exported-value/count-smoothing method, source context and confirmation. It
+shows the matched bin, mapped probability, response counts when supplied,
+exact evidence and an ordinal step chart. A separately approved downloadable
+empty template supplies only the existing model identifiers; domain, method,
+metadata and bins must come from authoritative evidence.
+
+This feature does not fit Platt scaling, run PAVA, guess missing mappings,
+change the original sigmoid preview or calculate exploration/business priority.
+Unavailable, incomplete, mismatched and out-of-range cases withhold results.
+Mapping data stays local and out of AI, evolution and structural audit exports.
+The result remains an **unverified companion mapping**, not established Pega
+reproduction. Actual same-snapshot source mappings and expected platform
+outputs, including boundaries and routing cases, remain the parity gate.
+
+Fresh local acceptance passed 260 unit/component tests, 47 server checks,
+45 production Chrome checks (two unconfigured private-corpus cases skipped),
+TypeScript, the subpath smoke and restored root build. The initial complete
+browser run had one 161 ms large-tree benchmark failure; an isolated recheck
+and the subsequent complete rerun passed unchanged limits. Exact measurements,
+retained failure evidence and limitations are recorded in
+`PERFORMANCE_ACCESSIBILITY.md`. The existing configured local server was
+preserved; no real provider request or private-data transfer was used.
+
+These mapping and preceding visual refinements remain local and uncommitted.
+Hosted CI for the published baseline does not cover them. Full workflow,
+schema, provenance requirements and deliberate compatibility limits are in
+[PROPENSITY_MAPPING.md](PROPENSITY_MAPPING.md).
+
+## Publication and visual refinement follow-up, 2026-10-15
+
+The owner subsequently requested publication of all completed changes. The
+v6.4 integration and earlier follow-ups were committed and pushed as
+`476bbefba05035fa7ffcb72afab0fa6cfaef0b4d`;
+[its hosted CI passed](https://github.com/ammobasher/ExperienceAGB/actions/runs/38773259415).
+Statements below that those changes were uncommitted describe their earlier
+checkpoints, not the published baseline.
+
+The subsequent visual refinement is a separate local, uncommitted change:
+light-theme hierarchy and readable type, descriptive mode cards, plain-language
+guides, labeled diagram colors, exported/computed metric badges, percentage
+displays and keyboard-accessible exact-number disclosures. Diagram operators
+now use parsed split conditions rather than matching `in`/`is` inside predictor
+names. Complete rendering, scoring semantics, evidence contracts, cloud consent
+and server credentials are unchanged. This frontend-only refinement does not
+require restarting the credential-configured bridge.
+
+Local acceptance for that refinement passed: **216 unit/component tests**,
+**47 server checks**, **42 production Chrome checks** (two unconfigured private
+corpus cases skipped), TypeScript, the subpath hosting smoke and restored root
+production build. Desktop/mobile screenshots, keyboard disclosures, mode
+guidance, chart explanations and axe A/AA were checked. The unchanged
+main-thread gate passed: 72 ms maximum for insights/export and 63 ms for the
+five-cycle lifecycle; the forest/edit and high-cardinality/editor intervals had
+no task at least 50 ms. See `PERFORMANCE_ACCESSIBILITY.md` for exact commands,
+measurements, earlier test corrections and limitations. The user server
+remained running; scoped verification hosts stopped. Hosted CI for `476bbef`
+does not cover these uncommitted visual refinements.
+
 ## v6.4 structural analytics follow-up, 2026-10-15
 
 The authorized attachment-review integration is implemented locally: linked
