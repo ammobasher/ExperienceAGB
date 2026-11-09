@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { request as httpRequest } from 'node:http';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { createAIHost } from './ai-host.mjs';
 import { ANTHROPIC, buildAnthropicPayload } from '../src/ai/anthropic.ts';
 import { buildCopilotPayload } from '../src/ai/providers.ts';
@@ -23,6 +24,42 @@ const fullSubmission = (provider = 'anthropic', raw = fullRaw) => ({
   provider, payload: buildFullModelPayload(provider, provider === 'copilot' ? 'auto' : ANTHROPIC.defaultModel, evidenceFor(raw)),
   approved: true, evidenceApproved: true,
 });
+test('desktop configuration is explicit, bounded, session-only and invalidates previous request tokens', async () => {
+  await harness({ credentialSetup: 'Desktop: use File > Load AI credentials', credentialSource: 'desktop session only', onDiagnostic() {} }, async ({ host, origin, headers }) => {
+    const status = () => fetch(origin + '/api/ai/status', { headers: { 'X-AGB-UI': '1' } }).then(response => response.json());
+    const before = await status();
+    assert.ok(before.providers.every(entry => !entry.configured));
+    assert.equal(before.credentialSetup, 'Desktop: use File > Load AI credentials');
+    assert.throws(() => host.configureCredentials({ apiKey: 'bad\nkey' }));
+    assert.equal((await status()).csrf, before.csrf);
+    host.configureCredentials({ copilotToken: 'SENSITIVE_DESKTOP_TEST', apiKey: '' });
+    const configured = await status();
+    assert.equal(configured.providers[0].configured, true);
+    assert.equal(configured.providers[0].authSource, 'desktop session only');
+    assert.ok(!JSON.stringify(configured).includes('SENSITIVE_DESKTOP_TEST'));
+    assert.notEqual(configured.csrf, before.csrf);
+    const stale = await fetch(origin + '/api/ai/commentary', { method: 'POST', headers, body: JSON.stringify(submission()) });
+    assert.equal(stale.status, 403);
+    host.configureCredentials({ apiKey: '', copilotToken: '' });
+    assert.ok((await status()).providers.every(entry => !entry.configured));
+  });
+  test('desktop cannot change identity during an admitted AI request', async () => {
+    let started, release;
+    const active = new Promise(resolve => { started = resolve; });
+    const response = new Promise(resolve => { release = resolve; });
+    await harness({ apiKey: 'mock', onDiagnostic() {}, fetchImpl: async () => { started(); return response; } }, async ({ host, post }) => {
+      const pending = post(submission());
+      await active;
+      assert.throws(() => host.configureCredentials({ apiKey: '', copilotToken: 'replacement' }), /active AI request/);
+      release(Response.json({ type: 'message', role: 'assistant', stop_reason: 'end_turn', content: [{ type: 'text', text: 'Synthetic approved response.' }] }));
+      assert.equal((await pending).status, 200);
+      host.configureCredentials({ apiKey: '', copilotToken: '' });
+    });
+    test('owned desktop runtime paths must be absolute and cannot contain control characters', () => {
+      for (const copilotRuntimePath of [42, '', 'relative-helper', resolve('helper') + '\0']) assert.throws(() => createAIHost({ copilotRuntimePath }), /owned Copilot runtime path/);
+    });
+  });
+});
 test('whole-model HTTP route requires evidence consent and preserves bounded evidence and exact prompt for both providers', async () => {
   for (const provider of ['anthropic', 'copilot']) {
     let calls = 0; let fallbacks = 0;
@@ -31,7 +68,8 @@ test('whole-model HTTP route requires evidence consent and preserves bounded evi
     const evidence = JSON.stringify(evidenceFor(raw));
     const body = fullSubmission(provider, raw);
     const output = 'Model explanation. '.repeat(1000);
-    await harness({ apiKey: 'mock', copilotToken: 'mock', onDiagnostic: record => records.push(record),
+    const copilotRuntimePath = resolve('synthetic-unpacked-helper');
+    await harness({ apiKey: 'mock', copilotToken: 'mock', copilotRuntimePath, onDiagnostic: record => records.push(record),
       fetchImpl: async (url, options) => {
         if (provider !== 'anthropic') { fallbacks++; throw new Error('forbidden'); }
         calls++;
@@ -44,8 +82,9 @@ test('whole-model HTTP route requires evidence consent and preserves bounded evi
         assert.ok(sent.system.includes('v6.4 local-evidence adaptation'));
         return Response.json({ type: 'message', role: 'assistant', stop_reason: 'end_turn', content: [{ type: 'text', text: output }] });
       },
-      copilotClientFactory: () => {
+      copilotClientFactory: options => {
         if (provider !== 'copilot') { fallbacks++; throw new Error('forbidden'); }
+        assert.equal(options.connection.path, copilotRuntimePath);
         return { async start() {}, async getAuthStatus() { return { isAuthenticated: true }; },
           async createSession(config) {
             assert.deepEqual(config.availableTools, []);

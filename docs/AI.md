@@ -1,5 +1,12 @@
 # Optional whole-model evidence explanation and contextual commentary
 
+For the executable desktop version, use the session-only native credential
+picker described in [Desktop setup](DESKTOP.md). It bundles its own backend and
+Copilot runtime; the server-environment instructions below apply to the separate
+browser/Node host. Both versions require the same explicit request approvals.
+The pinned SDK's Zod dependency is overridden to 4.6.6 for
+GHSA-mrhx-c7xc-m3w5; the SDK/runtime and application consent contracts are unchanged.
+
 ## Whole-model evidence explanation
 
 The owner originally requested an LLM explanation using the original

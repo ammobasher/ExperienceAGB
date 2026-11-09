@@ -1,5 +1,8 @@
 node_modules/
 dist/
+.desktop-build/
+release/
+desktop-results/
 *.tsbuildinfo
 test-results/
 test-results-hosting/

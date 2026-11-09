@@ -22,6 +22,39 @@ npm run start:local
 
 The application requires JavaScript and local Web Workers. Import failure is surfaced rather than falling back to blocking main-thread parsing.
 
+## Windows and Mac desktop app
+
+The Electron desktop version bundles the web app, its loopback backend and the
+matching Copilot runtime. End users do **not** need Node.js, npm, a terminal or
+an already-running browser server. Local analysis works offline without AI.
+The desktop backend uses its own randomly assigned loopback port, so it can
+coexist with the browser app on port 5183.
+
+Developer commands:
+
+```powershell
+npm ci
+npm run desktop
+npm run desktop:package:win
+```
+
+Windows outputs are `release\ExperienceAGB-0.1.0-win-x64-Setup.exe` and
+`release\ExperienceAGB-0.1.0-win-x64-Portable.exe`. The installer is per-user;
+the portable executable runs without installation.
+
+On a Mac, use `npm run desktop:package:mac:intel` or
+`npm run desktop:package:mac:apple` for Intel or Apple Silicon respectively.
+Native builds produce a DMG and zipped `ExperienceAGB.app`. macOS packaging
+requires a Mac host; the packager rejects Mac builds on Windows before staging.
+The **Desktop installers** Actions workflow builds and exercises Windows,
+Intel Mac and Apple Silicon on their own runners when manually dispatched or
+given a `desktop-v*` tag; it uploads artifacts without publishing a release.
+
+These are unsigned exploratory builds, not trusted publisher releases.
+Windows SmartScreen and macOS Gatekeeper can warn or block them. Trusted
+distribution requires separate publisher signing and Apple notarization.
+See [Desktop setup, optional AI, build checks and limitations](docs/DESKTOP.md).
+
 ## Core tasks
 
 1. **Open** a `.json` file up to 25 MiB, or **Try the bundled sample**. Correct all structural errors in the validation report. Only observed tag formats and structure are accepted; unknown fields are deliberately rejected rather than assumed compatible.

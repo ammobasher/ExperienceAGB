@@ -1,0 +1,62 @@
+name: Desktop installers
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'desktop-v*'
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2025
+            platform: win32
+            architecture: x64
+          - runner: macos-15-intel
+            platform: darwin
+            architecture: x64
+          - runner: macos-15
+            platform: darwin
+            architecture: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    env:
+      COPILOT_GITHUB_TOKEN: ''
+      ANTHROPIC_API_KEY: ''
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      DESKTOP_TEST_OUTPUT: desktop-results
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:desktop:unit
+      - run: npm run desktop:build
+      - run: npm run test:desktop
+      - run: node desktop/package.mjs ${{ matrix.platform }} ${{ matrix.architecture }}
+      - run: npm run test:desktop:packaged
+      - run: npm run test:desktop:runtime
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ExperienceAGB-${{ matrix.platform }}-${{ matrix.architecture }}
+          path: |
+            release/*.exe
+            release/*.zip
+            release/*.dmg
+            release/*-build.json
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desktop-evidence-${{ matrix.platform }}-${{ matrix.architecture }}
+          path: desktop-results
+          if-no-files-found: ignore

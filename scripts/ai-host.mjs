@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { resolve } from 'node:path';
+import { isAbsolute, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createPreviewHost, securityHeaders } from './preview-host.mjs';
 import {
@@ -55,14 +55,21 @@ function safeToken(received, expected) {
 export function createAIHost({
   root = resolve('dist'), base = '/', apiKey = '', model = ANTHROPIC.defaultModel,
   uiOrigin, fetchImpl = globalThis.fetch, timeoutMs = REQUEST_TIMEOUT_MS, maxConcurrent = 2,
-  copilotToken = '', copilotClientFactory,
+  copilotToken = '', copilotClientFactory, copilotRuntimePath,
+  credentialSetup, credentialSource,
   onDiagnostic = record => console.info('[AI request]', JSON.stringify(record)),
 } = {}) {
   if (!ANTHROPIC.models.includes(model)) throw new Error('Unsupported ANTHROPIC_MODEL. Use a documented allowlisted model.');
   if (uiOrigin && !/^http:\/\/127\.0\.0\.1:\d{1,5}$/.test(uiOrigin)) throw new Error('AGB_UI_ORIGIN must be an exact loopback origin.');
-  if (typeof apiKey !== 'string' || /[\r\n\0]/.test(apiKey) || apiKey.length > 512) throw new Error('Invalid server API key configuration.');
-  if (typeof copilotToken !== 'string' || /[\r\n\0]/.test(copilotToken) || copilotToken.length > 512) throw new Error('Invalid server Copilot credential configuration.');
-  const csrf = randomBytes(32).toString('hex');
+  function validateCredentials(key, token) {
+    if (typeof key !== 'string' || /[\r\n\0]/.test(key) || key.length > 512) throw new Error('Invalid server API key configuration.');
+    if (typeof token !== 'string' || /[\r\n\0]/.test(token) || token.length > 512) throw new Error('Invalid server Copilot credential configuration.');
+  }
+  validateCredentials(apiKey, copilotToken);
+  if (credentialSetup !== undefined && (typeof credentialSetup !== 'string' || !credentialSetup.trim() || credentialSetup.length > 512)) throw new Error('Invalid credential setup description.');
+  if (credentialSource !== undefined && (typeof credentialSource !== 'string' || !credentialSource.trim() || credentialSource.length > 160)) throw new Error('Invalid credential source description.');
+  if (copilotRuntimePath !== undefined && (typeof copilotRuntimePath !== 'string' || !isAbsolute(copilotRuntimePath) || /[\r\n\0]/.test(copilotRuntimePath))) throw new Error('Invalid owned Copilot runtime path.');
+  let csrf = randomBytes(32).toString('hex');
   const controllers = new Set();
   const pending = new Set();
   const staticHost = createPreviewHost({ root, base });
@@ -91,9 +98,9 @@ export function createAIHost({
     if (request.url === `${prefix}status`) {
       if (request.method !== 'GET') { reject(405); return; }
       if (request.headers['x-agb-ui'] !== '1') { reject(403); return; }
-      send(200, { defaultProvider: 'copilot', commentaryContract: COMMENTARY_CONTRACT_VERSION, requestTimeoutMs: timeoutMs, csrf, providers: [
-        { id: 'copilot', configured: Boolean(copilotToken), blocked: copilotBlocked ? 'cleanup' : null, model: COPILOT.defaultModel, authSource: 'explicit COPILOT_GITHUB_TOKEN (server environment)', destination: COPILOT.destination },
-        { id: 'anthropic', configured: Boolean(apiKey), blocked: null, model, authSource: 'ANTHROPIC_API_KEY (server environment)', destination: ANTHROPIC.endpoint },
+      send(200, { defaultProvider: 'copilot', commentaryContract: COMMENTARY_CONTRACT_VERSION, requestTimeoutMs: timeoutMs, csrf, ...(credentialSetup === undefined ? {} : { credentialSetup }), providers: [
+        { id: 'copilot', configured: Boolean(copilotToken), blocked: copilotBlocked ? 'cleanup' : null, model: COPILOT.defaultModel, authSource: credentialSource ?? 'explicit COPILOT_GITHUB_TOKEN (server environment)', destination: COPILOT.destination },
+        { id: 'anthropic', configured: Boolean(apiKey), blocked: null, model, authSource: credentialSource ?? 'ANTHROPIC_API_KEY (server environment)', destination: ANTHROPIC.endpoint },
       ] });
       return;
     }
@@ -139,7 +146,7 @@ export function createAIHost({
       upstreamStarted = true;
       if (provider === 'copilot') {
         const text = await runCopilot(payload, controller.signal, {
-          token: copilotToken, clientFactory: copilotClientFactory,
+          token: copilotToken, clientFactory: copilotClientFactory, runtimePath: copilotRuntimePath,
           onStage: stage => {
             if (stage === 'cleanup') clearTimeout(timer);
             else workStage = stage;
@@ -186,6 +193,12 @@ export function createAIHost({
   server.on('clientError', (_error, socket) => socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n'));
   return {
     server,
+    configureCredentials({ apiKey: nextKey = '', copilotToken: nextToken = '' }) {
+      if (active) throw new Error('Cancel or finish the active AI request before changing credentials.');
+      validateCredentials(nextKey, nextToken);
+      apiKey = nextKey; copilotToken = nextToken;
+      csrf = randomBytes(32).toString('hex');
+    },
     async close() {
       for (const controller of controllers) controller.abort();
       if (server.listening) {

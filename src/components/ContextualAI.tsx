@@ -70,6 +70,9 @@ export default function ContextualAI({ source, defaultScope, modelExplanation = 
     invalidate(); setEnabled(false); setStatus(undefined); setTerms(false); setIncludeProfile(false); setProvider('copilot');
   }
   useEffect(() => () => { generation.current++; abort.current?.abort(); }, []);
+  useEffect(() => window.experienceAGBDesktop?.onAIConfigurationChanged(() => {
+    invalidate(); setStatus(undefined); setTerms(false); setIncludeProfile(false); setRefresh(value => value + 1);
+  }), []);
   useEffect(() => { invalidate(); setIncludeProfile(false); }, [contextIdentity, scope, provider, model, terms]);
   useEffect(() => { setScope(defaultScope); }, [defaultScope]);
   useEffect(() => {
@@ -134,7 +137,7 @@ export default function ContextualAI({ source, defaultScope, modelExplanation = 
       <label>Commentary provider<select value={provider} onChange={event => {
         if (isProvider(event.target.value)) { invalidate(); setTerms(false); setIncludeProfile(false); setProvider(event.target.value); }
       }}><option value="copilot">GitHub Copilot (default)</option><option value="anthropic">Anthropic (explicit alternative)</option></select></label>
-      <p>{checking ? 'Checking local server configuration (no inference request)...' : !status && error ? 'Local bridge configuration is not ready. See the message below.' : selected?.configured ? 'Server credential configured (not account-verified). No inference request has been made by this configuration check.' : `Set ${provider === 'copilot' ? 'COPILOT_GITHUB_TOKEN' : 'ANTHROPIC_API_KEY'} in the local server environment and restart the bridge. Never enter credentials in this browser or chat.`}</p>
+      <p>{checking ? 'Checking local server configuration (no inference request)...' : !status && error ? 'Local bridge configuration is not ready. See the message below.' : selected?.configured ? 'Server credential configured (not account-verified). No inference request has been made by this configuration check.' : status?.credentialSetup ?? `Set ${provider === 'copilot' ? 'COPILOT_GITHUB_TOKEN' : 'ANTHROPIC_API_KEY'} in the local server environment and restart the bridge. Never enter credentials in this browser or chat.`}</p>
       <p>Provider: <b>{provider === 'copilot' ? 'GitHub Copilot' : 'Anthropic'}</b> · Server model: <b>{model}</b>. Credential source: {selected?.authSource ?? 'selected server environment only'}.</p>
       {status && <p>Request deadline: {status.requestTimeoutMs / 1000} seconds for local runtime startup and provider response; Copilot may then need up to {COPILOT_CLEANUP_TIMEOUT_MS / 1000} seconds for isolated runtime cleanup. Cancellation remains available; no automatic retry.</p>}
       {provider === 'copilot' && <p>The official SDK uses an owned, isolated local runtime, not a browser API-key endpoint. This app does not inherit chat credentials or silently use GH_TOKEN, GITHUB_TOKEN or stored login identities. An explicitly configured, entitled account is required. Tools, shell, file access, MCP, skills, ambient instructions, shared memory and session export are disabled.</p>}

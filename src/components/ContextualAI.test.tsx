@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ContextualAI from './ContextualAI';
 import { fixture } from '../ai/contextFixture';
@@ -24,6 +24,29 @@ const approve = () => {
   fireEvent.click(screen.getByRole('checkbox', { name: /I reviewed/ }));
 };
 describe('selected-provider per-request consent and teardown', () => {
+  it('desktop credential changes clear AI approvals/output and recheck without losing the model', async () => {
+    let changed: (() => void) | undefined;
+    const unsubscribe = vi.fn();
+    Object.defineProperty(window, 'experienceAGBDesktop', { configurable: true, value: {
+      onAIConfigurationChanged(callback: () => void) { changed = callback; return unsubscribe; },
+    } });
+    try {
+      const source = fixture();
+      const { unmount } = render(<ContextualAI source={source} defaultScope="tree" />);
+      await enable(); approve();
+      fireEvent.click(screen.getByRole('button', { name: /Send approved/ }));
+      await screen.findByText('<script>untrusted</script> https://evil.example');
+      requests.mockImplementation(async () => Response.json({ ...status, credentialSetup: 'Desktop: use File > Load AI credentials', providers: status.providers.map(entry => ({ ...entry, configured: false })) }));
+      act(() => changed?.());
+      await screen.findByText('Desktop: use File > Load AI credentials');
+      expect(screen.queryByText('<script>untrusted</script> https://evil.example')).not.toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: /I reviewed/ })).not.toBeChecked();
+      expect(screen.getByRole('checkbox', { name: /I am responsible/ })).not.toBeChecked();
+      expect(screen.getByRole('button', { name: /Send approved/ })).toBeDisabled();
+      expect(source.model).toBeDefined();
+      unmount(); expect(unsubscribe).toHaveBeenCalledOnce();
+    } finally { Reflect.deleteProperty(window, 'experienceAGBDesktop'); }
+  });
   it('contains invalid optional AI evidence without crashing or contacting a provider', async () => {
     const source = fixture();
     source.analysis.modelEvidence!.coverage.fileBytes = -1;
@@ -67,6 +90,14 @@ describe('selected-provider per-request consent and teardown', () => {
     expect(await screen.findByText(/Set COPILOT_GITHUB_TOKEN/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Send approved/ })).toBeDisabled();
     expect(requests).toHaveBeenCalledTimes(1);
+  });
+  it('rejects invalid desktop setup metadata rather than displaying an object or oversized content', async () => {
+    requests.mockImplementation(async () => Response.json({ ...status, credentialSetup: { secret: 'PRIVATE_METADATA' } }));
+    render(<ContextualAI source={fixture()} defaultScope="model" />);
+    fireEvent.click(screen.getByRole('checkbox', { name: /Enable optional/ }));
+    await screen.findByText(/Local bridge configuration is not ready/);
+    expect(screen.queryByText(/PRIVATE_METADATA/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Send approved/ })).toBeDisabled();
   });
   it('a cleanup error visibly blocks another approved request instead of claiming credential rejection', async () => {
     requests.mockImplementation(async (url: string) => url.endsWith('/status') ? Response.json(status) : Response.json({ code: 'cleanup', message: 'PRIVATE_PROVIDER_DIAGNOSTIC' }, { status: 503 }));

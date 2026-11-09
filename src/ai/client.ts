@@ -4,7 +4,7 @@ import type { ProviderId, ProviderPayload } from './providers';
 import { COMMENTARY_CONTRACT_VERSION } from './auditPrompt';
 
 export interface ProviderStatus { id: ProviderId; configured: boolean; blocked: 'cleanup' | null; model: string; authSource: string; destination: string }
-export interface AIStatus { defaultProvider: ProviderId; providers: ProviderStatus[]; csrf: string; requestTimeoutMs: number }
+export interface AIStatus { defaultProvider: ProviderId; providers: ProviderStatus[]; csrf: string; requestTimeoutMs: number; credentialSetup?: string }
 const endpoint = (path: string) => `${import.meta.env.BASE_URL}api/ai/${path}`;
 async function localRequest(path: string, init: RequestInit, signal: AbortSignal, timeout: number, responseBytes?: number): Promise<unknown> {
   const controller = new AbortController();
@@ -30,12 +30,14 @@ export async function loadAIStatus(signal: AbortSignal): Promise<AIStatus> {
   const body = await localRequest('status', { headers: { 'X-AGB-UI': '1' } }, signal, 5000);
   if (body && typeof body === 'object' && (!('commentaryContract' in body) || body.commentaryContract !== COMMENTARY_CONTRACT_VERSION || !('requestTimeoutMs' in body) || body.requestTimeoutMs !== REQUEST_TIMEOUT_MS)) throw new CommentaryError('restart');
   if (!body || typeof body !== 'object' || !('defaultProvider' in body) || body.defaultProvider !== 'copilot' || !('csrf' in body) || typeof body.csrf !== 'string' || !/^[a-f0-9]{64}$/.test(body.csrf) || !('providers' in body) || !Array.isArray(body.providers) || body.providers.length !== 2) throw new CommentaryError('response');
+  const credentialSetup = 'credentialSetup' in body ? body.credentialSetup : undefined;
+  if (credentialSetup !== undefined && (typeof credentialSetup !== 'string' || !credentialSetup.trim() || credentialSetup.length > 512)) throw new CommentaryError('response');
   const providers: ProviderStatus[] = [];
   for (const entry of body.providers) {
     if (!entry || typeof entry !== 'object' || !isProvider(entry.id) || providers.some(item => item.id === entry.id) || typeof entry.configured !== 'boolean' || entry.blocked !== null && entry.blocked !== 'cleanup' || entry.id === 'anthropic' && entry.blocked !== null || typeof entry.model !== 'string' || typeof entry.authSource !== 'string' || entry.authSource.length > 160 || entry.destination !== (entry.id === 'copilot' ? COPILOT.destination : ANTHROPIC.endpoint) || !(entry.id === 'copilot' ? entry.model === 'auto' : ANTHROPIC.models.some(model => model === entry.model))) throw new CommentaryError('response');
     providers.push({ id: entry.id, configured: entry.configured, blocked: entry.blocked, model: entry.model, authSource: entry.authSource, destination: entry.destination });
   }
-  return { defaultProvider: 'copilot', providers, csrf: body.csrf, requestTimeoutMs: REQUEST_TIMEOUT_MS };
+  return { defaultProvider: 'copilot', providers, csrf: body.csrf, requestTimeoutMs: REQUEST_TIMEOUT_MS, ...(credentialSetup === undefined ? {} : { credentialSetup }) };
 }
 export async function requestCommentary(status: AIStatus, provider: ProviderId, payload: ProviderPayload, profileApproved: boolean, signal: AbortSignal): Promise<string> {
   if (!status.providers.find(entry => entry.id === provider)?.configured) throw new CommentaryError('configuration');

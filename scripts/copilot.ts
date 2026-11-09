@@ -114,6 +114,7 @@ function hookFailure(error: string, context: string): CopilotFailure {
 }
 export interface CopilotOptions {
   token?: string;
+  runtimePath?: string;
   clientFactory?: (options: CopilotClientOptions) => SDKClient;
   onStage?: (stage: 'runtime-start' | 'authentication' | 'session-create' | 'inference' | 'cleanup') => void;
   removeState?: typeof rm;
@@ -125,7 +126,7 @@ async function bounded<T>(operation: Promise<T>, ms: number): Promise<T> {
   finally { clearTimeout(timer); }
 }
 export async function runCopilot(payload: CopilotPayload, signal: AbortSignal, {
-  token = '', clientFactory = options => new CopilotClient(options), onStage, onFailure, removeState = rm,
+  token = '', runtimePath, clientFactory = options => new CopilotClient(options), onStage, onFailure, removeState = rm,
 }: CopilotOptions = {}): Promise<string> {
   signal.throwIfAborted();
   if (!token) throw new CommentaryError('configuration');
@@ -158,7 +159,7 @@ export async function runCopilot(payload: CopilotPayload, signal: AbortSignal, {
     await Promise.all([mkdir(home), mkdir(workspace)]);
     signal.throwIfAborted();
     const runtime = clientFactory({
-      connection: RuntimeConnection.forStdio(),
+      connection: RuntimeConnection.forStdio(runtimePath === undefined ? undefined : { path: runtimePath }),
       mode: 'empty', baseDirectory: home, workingDirectory: workspace,
       env: childEnvironment(process.env, home), gitHubToken: token, useLoggedInUser: false,
       logLevel: 'none', sessionIdleTimeoutSeconds: Math.ceil(CLIENT_REQUEST_TIMEOUT_MS / 1000),

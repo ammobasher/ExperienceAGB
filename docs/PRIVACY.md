@@ -1,5 +1,13 @@
 # Privacy and local data lifecycle
 
+The executable desktop edition uses the same local model/worker and optional
+consented AI data flows. It adds a native, explicitly selected credential file
+whose contents remain in backend memory for the session, not renderer storage.
+The selected file and approved downloads persist outside app memory.
+Chromium/OS temporary metadata, memory/swap and crash traces are not guaranteed
+erased. See [Desktop data lifecycle and distribution](DESKTOP.md) for precise
+credential, session, download and shutdown behavior. and local data lifecycle
+
 - This is a local-first browser application with an optional loopback commentary bridge. GitHub Copilot SDK/local CLI is the default; Anthropic is an explicitly selected alternative, never a fallback. Model exports are read and parsed by a local Web Worker; the optional 256 KiB-bounded propensity companion is parsed locally in the browser. Deterministic analysis stays in that browser.
 - The approved release is **local-only hosting** on loopback. The owner authorized publishing only the bundled demonstration sample, not private exports, profiles, identities or test evidence. Repository publication is not permission to deploy a public model-upload service.
 - Model/profile data stays in page/worker memory until explicitly shared. There is no localStorage/sessionStorage/IndexedDB persistence, recents list or app account. Approved minimized context or computed whole-model evidence passes through the loopback server to the selected provider. Raw model JSON is no longer an accepted provider input. The app does not log payloads. The SDK can create isolated ephemeral session state outside the project; sessions/runtime are closed and their directory removed per request. SDK shared stores/content telemetry are disabled. Crash remnants, OS traces/backups and provider retention are not guaranteed erased.

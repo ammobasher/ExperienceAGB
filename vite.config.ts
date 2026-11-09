@@ -9,7 +9,7 @@ export default defineConfig({
     proxy: { '/api/ai': { target: 'http://127.0.0.1:5183', changeOrigin: true } },
   },
   test: {
-    exclude: ['e2e/**', 'scripts/**', 'node_modules/**', 'dist/**'],
+    exclude: ['e2e/**', 'scripts/**', 'desktop/**', '.desktop-build/**', 'release/**', 'node_modules/**', 'dist/**'],
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
   },
