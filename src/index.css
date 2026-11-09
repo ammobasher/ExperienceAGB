@@ -121,7 +121,7 @@ h1, h2, p { margin-top: 0; }
 .button { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 12px; border: 0; border-radius: 7px; padding: 10px 16px; cursor: pointer; font-size: 14px; font-weight: 600; line-height: 1.4; transition: background-color .15s; }
 .button:hover:not(:disabled) { transform: translateY(-1px); }
 .button:disabled { cursor: not-allowed; background: #edf1f4; border: 1px solid #d6e0e8; color: #667784; }
-.button-primary { background: var(--teal); color: white; }
+.button-primary { background: var(--teal); color: white; transition: none; }
 .button-primary span { color: var(--green); font-size: 16px; }
 .button-quiet { border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
 .or-divider { display: flex; align-items: center; gap: 12px; margin: 16px 0 8px; color: #7b8780; font-size: 9px; font-weight: 800; letter-spacing: .1em; }

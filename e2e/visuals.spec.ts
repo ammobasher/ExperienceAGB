@@ -10,6 +10,44 @@ async function inspect(page: Page, testInfo: TestInfo, name: string) {
   await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true });
 }
 
+test('primary actions retain WCAG text contrast on every frame when re-enabled', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /Try the bundled sample/ }).click();
+  await page.getByRole('button', { name: 'Model evolution', exact: true }).click();
+  const evolution = page.getByRole('region', { name: 'Model evolution', exact: true });
+  await expect(evolution.getByRole('button', { name: 'Add snapshot files', exact: true })).toBeDisabled();
+  const ratios = await evolution.evaluate(element => new Promise<number[]>((resolve, reject) => {
+    const button = element.querySelector<HTMLButtonElement>('.button-primary');
+    const confirmation = element.querySelector<HTMLInputElement>('input[type="checkbox"]');
+    if (!button || !confirmation) throw new Error('Snapshot action and confirmation are required.');
+    function luminance(colour: string) {
+      const channels = colour.match(/\d+/g)?.slice(0, 3).map(Number);
+      if (!channels || channels.length !== 3) throw new Error('Expected an opaque RGB control colour.');
+      const linear = channels.map(channel => {
+        const value = channel / 255;
+        return value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4;
+      });
+      return .2126 * linear[0] + .7152 * linear[1] + .0722 * linear[2];
+    }
+    getComputedStyle(button).backgroundColor;
+    confirmation.click();
+    const started = performance.now(), frames: number[] = [];
+    function sample(now: number) {
+      try {
+        if (!button || button.disabled) throw new Error('The confirmed snapshot action must be enabled.');
+        const style = getComputedStyle(button);
+        const foreground = luminance(style.color), background = luminance(style.backgroundColor);
+        frames.push((Math.max(foreground, background) + .05) / (Math.min(foreground, background) + .05));
+        if (now - started < 200) requestAnimationFrame(sample);
+        else resolve(frames);
+      } catch (error) { reject(error); }
+    }
+    requestAnimationFrame(sample);
+  }));
+  expect(ratios.length).toBeGreaterThan(1);
+  expect(Math.min(...ratios)).toBeGreaterThanOrEqual(4.5);
+});
+
 for (const mobile of [false, true]) {
   test(`readable modes, evidence and charts without cloud requests (${mobile ? 'mobile' : 'desktop'})`, async ({ page }, testInfo) => {
     await page.setViewportSize(mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 });
