@@ -26,10 +26,19 @@ try {
   expect(await page.evaluate(() => [typeof require, typeof process, Object.keys(window.experienceAGBDesktop)])).toEqual(['undefined', 'undefined', ['onAIConfigurationChanged']]);
   await page.getByRole('button', { name: /Try the bundled sample/ }).click();
   await expect(page.locator('.diagram-workspace')).toHaveAttribute('aria-busy', 'false');
+  await app.evaluate(({ BrowserWindow }) => {
+    globalThis.desktopNativeFullscreen = { entered: false, left: false };
+    const window = BrowserWindow.getAllWindows()[0];
+    window.once('enter-full-screen', () => { globalThis.desktopNativeFullscreen.entered = true; });
+    window.once('leave-full-screen', () => { globalThis.desktopNativeFullscreen.left = true; });
+  });
   await page.getByRole('button', { name: 'Enter diagram fullscreen', exact: true }).click();
   await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(true);
+  // Cocoa completes its native transition after the DOM fullscreen event.
+  await expect.poll(() => app.evaluate(() => globalThis.desktopNativeFullscreen.entered)).toBe(true);
   await page.getByRole('button', { name: 'Exit diagram fullscreen', exact: true }).click();
   await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(false);
+  await expect.poll(() => app.evaluate(() => globalThis.desktopNativeFullscreen.left)).toBe(true);
   await page.getByRole('button', { name: 'Model insights', exact: true }).click();
   const audit = page.getByRole('region', { name: 'Local model insights', exact: true });
   const saved = join(output, 'native-audit.json');
