@@ -34,7 +34,7 @@ await npm(['ci', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund', `-
 const nativeMac = platform === 'darwin';
 const target = platform === 'win32' ? Platform.WINDOWS : Platform.MAC;
 await packageApp({
-  targets: target.createTarget(platform === 'win32' ? ['nsis', 'portable'] : ['dmg', 'zip'], architecture === 'x64' ? Arch.x64 : Arch.arm64),
+  targets: target.createTarget(platform === 'win32' ? ['nsis'] : ['dmg', 'zip'], architecture === 'x64' ? Arch.x64 : Arch.arm64),
   publish: 'never',
   config: {
     appId: 'io.github.ammobasher.experienceagb',
@@ -48,7 +48,6 @@ await packageApp({
     npmRebuild: false,
     win: { signAndEditExecutable: false },
     nsis: { oneClick: false, perMachine: false, allowToChangeInstallationDirectory: true, createDesktopShortcut: true, artifactName: 'ExperienceAGB-${version}-win-${arch}-Setup.${ext}' },
-    portable: { artifactName: 'ExperienceAGB-${version}-win-${arch}-Portable.${ext}' },
     mac: {
       category: 'public.app-category.developer-tools',
       minimumSystemVersion: '13.0',

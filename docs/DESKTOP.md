@@ -13,13 +13,12 @@ Use Node 24 LTS and `npm ci` for development:
 | Command | Result |
 |---|---|
 | `npm run desktop` | Builds and opens the native desktop window |
-| `npm run desktop:package:win` | Windows x64 per-user NSIS installer and portable executable |
+| `npm run desktop:package:win` | Windows x64 per-user NSIS installer |
 | `npm run desktop:package:mac:intel` | Intel Mac app ZIP and DMG; requires macOS |
 | `npm run desktop:package:mac:apple` | Apple Silicon app ZIP and DMG; requires macOS |
 
-Outputs live in the ignored `release` directory. Windows artifacts are
-`ExperienceAGB-0.1.0-win-x64-Setup.exe` and
-`ExperienceAGB-0.1.0-win-x64-Portable.exe`. macOS ZIP/DMG files use
+Outputs live in the ignored `release` directory. The Windows artifact is
+`ExperienceAGB-0.1.0-win-x64-Setup.exe`. macOS ZIP/DMG files use
 `ExperienceAGB-0.1.0-mac-x64` or `ExperienceAGB-0.1.0-mac-arm64`.
 Native Mac ZIPs contain `ExperienceAGB.app`; install it into Applications.
 Choose the architecture matching your Mac rather than assuming Rosetta.
@@ -40,13 +39,11 @@ without credentials or inference. Dependency
 install scripts are not needed for these prebuilt production artifacts.
 
 The Windows executable ships alongside its bundled resources; do not copy only
-the inner `win-unpacked` EXE. Use the installer or the portable EXE instead.
-The portable EXE extracts its resources to a temporary location while running;
-it does not persist models as a portability feature. Prefer the installer:
-portable extraction is substantial and took about 100 seconds on the local
-Windows acceptance machine. This is launcher unpacking, not model processing;
-closing the app stops its backend promptly while the wrapper can take longer
-to delete its temporary resources.
+the inner `win-unpacked` EXE. Use the installer instead. A self-extracting
+portable prototype was not retained: one launch took about 100 seconds and
+a later launch exceeded its 180-second startup limit on the local acceptance
+machine. The precise cause of that variation was not established. Installation
+avoids extracting the large bundled runtime every time the app opens.
 
 ## Optional AI, without a terminal
 

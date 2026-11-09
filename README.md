@@ -38,9 +38,9 @@ npm run desktop
 npm run desktop:package:win
 ```
 
-Windows outputs are `release\ExperienceAGB-0.1.0-win-x64-Setup.exe` and
-`release\ExperienceAGB-0.1.0-win-x64-Portable.exe`. The installer is per-user;
-the portable executable runs without installation.
+The Windows output is `release\ExperienceAGB-0.1.0-win-x64-Setup.exe`, a
+per-user installer. It installs the standalone app without requiring Node,
+npm or a separately running server.
 
 On a Mac, use `npm run desktop:package:mac:intel` or
 `npm run desktop:package:mac:apple` for Intel or Apple Silicon respectively.

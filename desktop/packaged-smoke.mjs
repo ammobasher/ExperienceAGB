@@ -9,7 +9,6 @@ const output = resolve(process.env.DESKTOP_TEST_OUTPUT ?? 'desktop-results');
 await mkdir(output, { recursive: true });
 const defaultExecutable = process.platform === 'win32' ? join('release', 'win-unpacked', 'ExperienceAGB.exe') : join('release', `mac${process.arch === 'arm64' ? '-arm64' : ''}`, 'ExperienceAGB.app', 'Contents', 'MacOS', 'ExperienceAGB');
 const executable = resolve(process.env.DESKTOP_EXECUTABLE ?? defaultExecutable);
-const launcher = resolve(process.env.DESKTOP_LAUNCHER ?? executable);
 const wire = await getCurrentFuseWire(process.platform === 'darwin' ? resolve(executable, '..', '..', '..') : executable);
 for (const fuse of [FuseV1Options.RunAsNode, FuseV1Options.EnableNodeOptionsEnvironmentVariable, FuseV1Options.EnableNodeCliInspectArguments, FuseV1Options.GrantFileProtocolExtraPrivileges]) expect(wire[fuse]).toBe(FuseState.DISABLE);
 expect(wire[FuseV1Options.OnlyLoadAppFromAsar]).toBe(FuseState.ENABLE);
@@ -20,7 +19,7 @@ const port = reservation.address().port;
 await new Promise(done => reservation.close(done));
 const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !['ELECTRON_RUN_AS_NODE', 'NODE_OPTIONS', 'COPILOT_GITHUB_TOKEN', 'ANTHROPIC_API_KEY', 'GH_TOKEN', 'GITHUB_TOKEN'].includes(key)));
 const started = performance.now();
-const child = spawn(launcher, [`--remote-debugging-port=${port}`, '--remote-debugging-address=127.0.0.1'], { cwd: output, env, stdio: ['ignore', 'ignore', 'pipe'] });
+const child = spawn(executable, [`--remote-debugging-port=${port}`, '--remote-debugging-address=127.0.0.1'], { cwd: output, env, stdio: ['ignore', 'ignore', 'pipe'] });
 child.stderr.resume();
 let spawnError;
 child.once('error', error => { spawnError = error; });
@@ -31,7 +30,7 @@ try {
     if (spawnError) throw spawnError;
     if (child.exitCode !== null) throw new Error(`Packaged app exited before startup (${child.exitCode}).`);
     try { return (await fetch(`http://127.0.0.1:${port}/json/version`, { signal: AbortSignal.timeout(1000) })).ok; } catch { return false; }
-  }, { timeout: launcher === executable ? 60_000 : 180_000 }).toBe(true);
+  }, { timeout: 60_000 }).toBe(true);
   const startupMs = Math.round(performance.now() - started);
   browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
   const page = browser.contexts()[0].pages()[0];
@@ -51,9 +50,9 @@ try {
   await expect.poll(async () => { try { await fetch(origin, { signal: AbortSignal.timeout(1000) }); return true; } catch { return false; } }).toBe(false);
   const backendShutdownMs = Math.round(performance.now() - closing);
   let timer;
-  const code = await Promise.race([exited, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Packaged app did not quit.')), launcher === executable ? 20_000 : 180_000); })]).finally(() => clearTimeout(timer));
+  const code = await Promise.race([exited, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Packaged app did not quit.')), 20_000); })]).finally(() => clearTimeout(timer));
   expect(code).toBe(0);
-  await writeFile(join(output, 'packaged-acceptance.json'), JSON.stringify({ platform: process.platform, architecture: process.arch, executable, launcher, origin, startupMs, backendShutdownMs, launcherCleanupMs: Math.round(performance.now() - closing), fused: true, sampleWorker: true, localInsights: true, defaultAIUnconfigured: true, nodeIntegration: false, shutdownVerified: true }, null, 2));
+  await writeFile(join(output, 'packaged-acceptance.json'), JSON.stringify({ platform: process.platform, architecture: process.arch, executable, origin, startupMs, backendShutdownMs, processShutdownMs: Math.round(performance.now() - closing), fused: true, sampleWorker: true, localInsights: true, defaultAIUnconfigured: true, nodeIntegration: false, shutdownVerified: true }, null, 2));
 } finally {
   await browser?.close();
   if (child.exitCode === null) child.kill();
